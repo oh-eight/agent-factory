@@ -1,0 +1,13 @@
+# Zola site for the agent-factory explainer. Built by .github/workflows/pages.yml
+# and served from GitHub Pages under /agent-factory/.
+base_url = "https://oh-eight.github.io/agent-factory"
+title = "agent-factory"
+description = "How the agent-factory loop turns one sentence into a merged, deployed, verified change."
+compile_sass = false
+build_search_index = false
+generate_feeds = false
+
+
+[extra]
+repo_url = "https://github.com/oh-eight/agent-factory"
+org_url = "https://github.com/oh-eight"

@@ -178,6 +178,19 @@ dashboard. Required capabilities stop the run with a message naming them.
 | `design` | UX reviewer skips design-system checks |
 | `voice` | the engine's own prose rules |
 
+## Site
+
+An animated explainer of the loop lives in `site/` (a Zola site) and is
+published to GitHub Pages at <https://oh-eight.github.io/agent-factory/> by
+`.github/workflows/pages.yml` on every push to `main` that touches `site/`.
+Pages must be set to deploy from GitHub Actions once in the repository
+settings. Locally:
+
+```bash
+zola --root site serve    # http://127.0.0.1:1111
+zola --root site build    # writes site/public/ (ignored by git)
+```
+
 ## Lints and the toy repo
 
 ```bash

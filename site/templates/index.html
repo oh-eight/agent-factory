@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block body %}
+<header class="band--hero">
+  <nav class="container nav">
+    <a href="{{ config.base_url }}/" class="wordmark">
+      <span class="ox">/</span><span class="e8">agent-factory</span>
+    </a>
+    <div class="nav-links">
+      <a href="#loop">The loop</a>
+      <a href="#stages">Stages</a>
+      <a href="#valve">The valve</a>
+      <a href="#front-door">Front door</a>
+      <a href="{{ config.extra.repo_url }}" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="band hero">
+      <div class="hero-grid">
+        <div class="reveal">
+          <div class="eyebrow">An autonomous development engine</div>
+          <h1 class="h1 h1--hero">One sentence<br>goes in.<br><span class="accent-purple">A verified</span><br>change comes out.</h1>
+          <p class="lede">You type <span class="mono-inline">/intake-oss</span> and a brief, a ticket key, a chat thread or a PR link. The factory works out what it is, writes the ticket, and runs it through a build-and-break loop that only stops when independent verifiers find nothing left to break. Then it opens the PR, keeps it green, merges when you say so, watches the deploy, and writes down what it learned.</p>
+        </div>
+        <div class="terminal reveal reveal--late" data-terminal aria-label="Animated terminal showing a factory run">
+          <div class="terminal-bar"><span></span><span></span><span></span><div class="terminal-title">claude · ~/code/sum-cli</div></div>
+          <div class="terminal-body">
+            <div class="t-line"><span class="t-prompt">›</span> <span class="t-cmd" data-t-cmd></span><span class="t-caret" data-t-caret></span></div>
+            <div class="t-out" data-t-out></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="band--alt">
+  <div class="container logo-strip">
+    <div class="strip-head">Capabilities, not vendors</div>
+    <div class="strip-sep"></div>
+    <div class="logo-mask">
+      <div class="logo-track">
+        <span>tracker</span><span>pr</span><span>ci</span><span>chat</span><span>obs</span><span>deploy</span><span>incidents</span><span>code</span><span>dispatch</span><span>knowledge</span><span>design</span><span>voice</span>
+        <span aria-hidden="true">tracker</span><span aria-hidden="true">pr</span><span aria-hidden="true">ci</span><span aria-hidden="true">chat</span><span aria-hidden="true">obs</span><span aria-hidden="true">deploy</span><span aria-hidden="true">incidents</span><span aria-hidden="true">code</span><span aria-hidden="true">dispatch</span><span aria-hidden="true">knowledge</span><span aria-hidden="true">design</span><span aria-hidden="true">voice</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="band" id="loop">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <div class="eyebrow">The loop</div>
+        <h2 class="h2">Build, break, repeat until nothing breaks.</h2>
+      </div>
+      <div class="mono-faint">0x01</div>
+    </div>
+    <p class="lede reveal" style="margin-top:0; margin-bottom: 40px;">Every ticket goes round the same track. Verifiers who never saw the code attack the running system from the spec alone. Anything they find sends the ticket back to <span class="mono-inline">prepare</span> for another round. A clean verdict is the only exit forward.</p>
+
+    <div class="pipeline reveal" data-pipeline>
+      <div class="pipeline-hud">
+        <div class="hud-item"><span class="hud-k">round</span><span class="hud-v" data-hud-round>1</span></div>
+        <div class="hud-item"><span class="hud-k">stage</span><span class="hud-v" data-hud-stage>input</span></div>
+        <div class="hud-item"><span class="hud-k">verdict</span><span class="hud-v" data-hud-verdict>—</span></div>
+        <button type="button" class="hud-btn" data-pipeline-toggle aria-label="Pause animation">pause</button>
+      </div>
+      <div class="pipeline-scroll">
+        <svg class="pipeline-svg" viewBox="0 0 1180 400" role="img" aria-labelledby="pipeline-title">
+          <title id="pipeline-title">The factory pipeline: input, classify, ticket, prepare, spec, verify, then either back to prepare with findings or forward to PR, nurses, merge, sentinel and learner.</title>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,255,255,0.35)"/>
+            </marker>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="6" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- forward track, top row -->
+          <path class="track" d="M 60 90 H 1120" marker-end="url(#arrow)"/>
+          <!-- loop back from verify to prepare -->
+          <path class="track track--loop" data-loop-track d="M 900 118 V 170 H 480 V 118" marker-end="url(#arrow)"/>
+          <!-- drop to bottom row on CLEAN -->
+          <path class="track" d="M 1120 110 V 300 H 60" marker-end="url(#arrow)"/>
+          <!-- motion paths (invisible) -->
+          <path data-path-main d="M 60 90 H 900"/>
+          <path data-path-loop d="M 900 90 V 170 H 480 V 90"/>
+          <path data-path-tail d="M 900 90 H 1120 V 300 H 60"/>
+
+          <!-- top row nodes -->
+          <g class="node" data-node="input" transform="translate(60 90)"><circle r="22"/><text y="-36">input</text></g>
+          <g class="node" data-node="classify" transform="translate(200 90)"><circle r="22"/><text y="-36">classify</text></g>
+          <g class="node" data-node="ticket" transform="translate(340 90)"><circle r="22"/><text y="-36">ticket</text></g>
+          <g class="node node--purple" data-node="prepare" transform="translate(480 90)"><circle r="26"/><text y="-40">prepare</text><text class="node-sub" y="56">map · size · split</text></g>
+          <g class="node node--purple" data-node="spec" transform="translate(690 90)"><circle r="26"/><text y="-40">spec-task</text><text class="node-sub" y="56">spec · build · test</text></g>
+          <g class="node node--teal" data-node="verify" transform="translate(900 90)"><circle r="26"/><text y="-40">adversarial-review</text><text class="node-sub" y="56">fuzzer · attacker · stranger</text></g>
+
+          <!-- verdict labels -->
+          <g class="verdict verdict--findings" data-verdict-findings transform="translate(690 195)"><rect x="-96" y="-15" width="192" height="30" rx="15"/><text>FINDINGS → round + 1</text></g>
+          <g class="verdict verdict--clean" data-verdict-clean transform="translate(1010 60)"><rect x="-40" y="-15" width="80" height="30" rx="15"/><text>CLEAN</text></g>
+
+          <!-- bottom row nodes (right to left) -->
+          <g class="node node--gold" data-node="pr" transform="translate(1010 300)"><circle r="22"/><text y="44">pr</text></g>
+          <g class="node node--gold" data-node="nurse" transform="translate(830 300)"><circle r="22"/><text y="44">nurses</text><text class="node-sub" y="-34">ci · review · sanity</text></g>
+          <g class="node node--gold" data-node="merge" transform="translate(650 300)"><circle r="22"/><text y="44">merge</text><text class="node-sub" y="-34">behind a gate</text></g>
+          <g class="node node--pink" data-node="sentinel" transform="translate(470 300)"><circle r="22"/><text y="44">deploy-sentinel</text><text class="node-sub" y="-34">watch window</text></g>
+          <g class="node node--pink" data-node="learn" transform="translate(290 300)"><circle r="22"/><text y="44">learner</text><text class="node-sub" y="-34">lesson · tune config</text></g>
+          <g class="node node--done" data-node="done" transform="translate(110 300)"><circle r="22"/><text y="44">done</text></g>
+
+          <!-- travelling token -->
+          <circle class="token" data-token r="9" cx="60" cy="90" filter="url(#glow)"/>
+        </svg>
+      </div>
+      <div class="pipeline-caption mono-faint">Round one finds the gap the brief never mentioned. Round two is clean. The token only moves forward on a clean verdict.</div>
+    </div>
+  </div>
+</section>
+
+<section class="band band--alt" id="stages">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <div class="eyebrow">Stage by stage</div>
+        <h2 class="h2">Eight stages, each with one job.</h2>
+      </div>
+      <div class="mono-faint">0x08</div>
+    </div>
+    <div class="row-list">
+      <div class="row reveal" style="--accent: var(--purple-light)">
+        <div class="row-head"><span class="row-index">01</span><div class="row-heading">prepare</div></div>
+        <p class="row-copy">Maps the repository, writes the context file, sizes the work and splits it when it is too big for one spec. A cartographer and a decomposer do the reading so later roles start warm.</p>
+      </div>
+      <div class="row reveal" style="--accent: var(--purple-light)">
+        <div class="row-head"><span class="row-index">02</span><div class="row-heading">spec-task</div></div>
+        <p class="row-copy">Writes a verifier-safe spec, has an independent intent verifier and a critic check it, then builds, tests, security- and UX-reviews, mutation-audits and burns the change in. The builder never grades its own work.</p>
+      </div>
+      <div class="row reveal" style="--accent: var(--teal-light)">
+        <div class="row-head"><span class="row-index">03</span><div class="row-heading">adversarial-review</div></div>
+        <p class="row-copy">Three personas attack the running system from the spec alone: a fuzzer, an attacker and a stranger who has never seen the ticket. Findings carry a fingerprint so a repeat is recognised.</p>
+      </div>
+      <div class="row reveal" style="--accent: var(--gold)">
+        <div class="row-head"><span class="row-index">04</span><div class="row-heading">pr</div></div>
+        <p class="row-copy">Pushes the branch and writes the PR body from the run's own files: intake becomes Problem, the build summary becomes Solution, QA and mutation reports become Testing. Draft by default.</p>
+      </div>
+      <div class="row reveal" style="--accent: var(--gold)">
+        <div class="row-head"><span class="row-index">05</span><div class="row-heading">nurses</div></div>
+        <p class="row-copy">The heartbeat keeps the PR alive. A build nurse reads CI and retries known flakes, a review nurse classifies comments and answers or fixes, and a sanity check once confirms the diff matches the description.</p>
+      </div>
+      <div class="row reveal" style="--accent: var(--gold)">
+        <div class="row-head"><span class="row-index">06</span><div class="row-heading">merge</div></div>
+        <p class="row-copy">Behind a gate. The dashboard shows the one line to type to pass it, or you set unattended merge once in the config and never see the gate again.</p>
+      </div>
+      <div class="row reveal" style="--accent: var(--pink-light)">
+        <div class="row-head"><span class="row-index">07</span><div class="row-heading">deploy-sentinel</div></div>
+        <p class="row-copy">Watches a window after the deploy: error counts, the metrics the ticket named, open incidents. A regression writes a finding and the loop reopens instead of a human noticing on Monday.</p>
+      </div>
+      <div class="row reveal" style="--accent: var(--pink-light)">
+        <div class="row-head"><span class="row-index">08</span><div class="row-heading">learner</div></div>
+        <p class="row-copy">Writes a lesson from the run and tunes a few marked config keys. When a lesson repeats it opens a draft PR against the engine's own reference files, citing the lesson.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band band--paper" id="valve">
+  <div class="container">
+    <div class="section-head reveal" style="align-items: start;">
+      <div>
+        <div class="eyebrow" style="color: var(--paper-accent);">The valve</div>
+        <h2 class="h2" style="color: var(--paper-ink); max-width: 560px;">A loop that cannot stop is a bill. This one escalates.</h2>
+      </div>
+      <p class="paper-aside">The loop ends on its own only when the verifiers pass everything. Everything else trips the valve and hands you one question.</p>
+    </div>
+    <div class="valve-grid">
+      <div class="valve-card reveal" style="--accent: var(--paper-accent)">
+        <div class="valve-num" data-count="5">5</div>
+        <div class="valve-label">rounds</div>
+        <p class="valve-copy">The default budget. Round six never starts; the run writes an escalation instead.</p>
+      </div>
+      <div class="valve-card reveal" style="--accent: #008B74">
+        <div class="valve-num">×2</div>
+        <div class="valve-label">same finding</div>
+        <p class="valve-copy">A fingerprint that survives a fix attempt in two consecutive rounds means the spec is wrong, not the code.</p>
+      </div>
+      <div class="valve-card reveal" style="--accent: #F07820">
+        <div class="valve-num">$</div>
+        <div class="valve-label">budget</div>
+        <p class="valve-copy">Tokens, minutes and inner passes each have a ceiling in the config. Blow one and the governor trips.</p>
+      </div>
+      <div class="valve-card reveal" style="--accent: #A8124A">
+        <div class="valve-num">?</div>
+        <div class="valve-label">one question</div>
+        <p class="valve-copy">The escalation file ends with the single question that unblocks the run. Answer it, type <span class="mono-inline-paper">go</span>, and round N+1 reads your answer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="front-door">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <div class="eyebrow">The front door</div>
+        <h2 class="h2">Everything starts with one command.</h2>
+      </div>
+      <div class="mono-faint">0x04</div>
+    </div>
+    <div class="grid-2">
+      <div class="card" data-glow-card style="--accent: #A24BF5">
+        <div class="card-glow"></div>
+        <div class="card-body">
+          <div class="tag-label">01 / INTAKE</div>
+          <h3 class="card-title">Anything in</h3>
+          <p class="card-copy">A sentence, a tracker key, a chat permalink, a doc link, a PR, a CI build, or several on one line. The classifier prints a three-line reading before any write: what it saw, the intent it chose, the next action. If that is wrong, say so. Nothing has happened yet.</p>
+          <div class="tags"><span class="tag">classify</span><span class="tag">reading</span><span class="tag">refine</span></div>
+        </div>
+      </div>
+      <div class="card" data-glow-card style="--accent: #00C9A7">
+        <div class="card-glow"></div>
+        <div class="card-body">
+          <div class="tag-label">02 / DISCOVERY</div>
+          <h3 class="card-title">Profiles, not vendors</h3>
+          <p class="card-copy">The engine asks for capabilities. On first run it looks at the MCP tools in the session, the CLIs on PATH and the repository's own signals, writes a profile that maps each capability to what this machine has, and asks one question about the gaps that change behaviour.</p>
+          <div class="tags"><span class="tag">profile.md</span><span class="tag">config.json</span><span class="tag">rediscover</span></div>
+        </div>
+      </div>
+      <div class="card" data-glow-card style="--accent: #F5D060">
+        <div class="card-glow"></div>
+        <div class="card-body">
+          <div class="tag-label">03 / HEARTBEAT</div>
+          <h3 class="card-title">Tick every fifteen minutes</h3>
+          <p class="card-copy">One heartbeat runs whatever is due for every active run: nurse passes, sentinel windows, factory shifts that fill dispatch slots with the next ready tickets. Epics are planned into a graph and their ready set is dispatched in parallel.</p>
+          <div class="tags"><span class="tag">tick</span><span class="tag">factory</span><span class="tag">epic-intake</span></div>
+        </div>
+      </div>
+      <div class="card" data-glow-card style="--accent: #E8256E">
+        <div class="card-glow"></div>
+        <div class="card-body">
+          <div class="tag-label">04 / DEGRADATION</div>
+          <h3 class="card-title">Missing tools, named</h3>
+          <p class="card-copy">No tracker? A file tracker under the factory home. No observability? The sentinel is skipped and the dashboard says so. No PR capability? The run stops before the PR stage with a message naming what it needs. Nothing fails silently.</p>
+          <div class="tags"><span class="tag">file tracker</span><span class="tag">gaps</span><span class="tag">dashboard</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band band--hero">
+  <div class="container cta">
+    <div class="reveal">
+      <h2 class="h1 cta-title">Install it,<br>then type one line.</h2>
+      <p class="lede" style="max-width: 520px;">Markdown skills for Claude Code, Cursor and Codex. One install script links them into every harness it finds.</p>
+    </div>
+    <div class="install reveal reveal--late">
+      <pre class="install-pre"><code><span class="c">git clone</span> {{ config.extra.repo_url }}.git
+<span class="c">cd</span> agent-factory
+<span class="c">./install.sh</span>            <span class="cm"># symlinks skills/* into every harness found</span>
+
+<span class="c">/intake-oss</span> "add a sum command that adds its integer arguments"</code></pre>
+      <a href="{{ config.extra.repo_url }}" class="cta-link" target="_blank" rel="noopener">github.com/oh-eight/agent-factory</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="wordmark"><span class="ox">/</span><span class="e8">agent-factory</span></div>
+    <div class="footer-links">
+      <a href="{{ config.extra.repo_url }}" target="_blank" rel="noopener">source</a>
+      <a href="{{ config.extra.org_url }}" target="_blank" rel="noopener">github.com/oh-eight</a>
+      <span>Built with Zola</span>
+    </div>
+  </div>
+</footer>
+{% endblock body %}
