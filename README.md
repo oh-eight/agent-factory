@@ -1,4 +1,4 @@
-# gero-factory
+# agent-factory
 
 An autonomous development engine made of markdown skills for Claude Code,
 Cursor and Codex, plus the front door that drives it:
@@ -22,8 +22,8 @@ machine has. `/intake-oss` writes that profile by discovery on first run.
 ## Install
 
 ```bash
-git clone <this repo> ~/work/gero-factory
-cd ~/work/gero-factory
+git clone <this repo> ~/projects/agent-factory
+cd ~/projects/agent-factory
 ./install.sh            # symlinks skills/* into every harness found
 ./install.sh --check    # what is linked where
 ./install.sh --uninstall
