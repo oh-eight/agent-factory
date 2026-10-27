@@ -188,6 +188,11 @@ p, h1, h2, h3 { margin: 0; }
 .footer .wordmark .ox { font-size: 20px; }
 .footer-links { display: flex; gap: 26px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 13px; color: var(--ink-softer); }
 .footer-links a:hover { color: var(--purple-light); }
+.footer-agency { flex-basis: 100%; display: flex; align-items: baseline; gap: 8px; padding-top: 22px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 13px; color: var(--ink-softer); }
+.footer-agency-k { white-space: nowrap; }
+.footer-agency-mark .ox { font-family: var(--font-mono); font-weight: 500; color: var(--ink-softer); font-size: 15px; }
+.footer-agency-mark .e8 { font-family: var(--font-display); letter-spacing: 0.04em; color: var(--white); font-size: 22px; }
+.footer-agency:hover .footer-agency-mark .e8, .footer-agency:hover .footer-agency-k { color: var(--purple-light); }
 
 /* Scroll reveal */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity 700ms cubic-bezier(.2,.7,.2,1), transform 700ms cubic-bezier(.2,.7,.2,1); }

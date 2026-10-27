@@ -11,3 +11,4 @@ generate_feeds = false
 [extra]
 repo_url = "https://github.com/oh-eight/agent-factory"
 org_url = "https://github.com/oh-eight"
+agency_url = "https://0xe8.com"
