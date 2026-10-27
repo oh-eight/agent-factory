@@ -44,7 +44,7 @@ report_lines "possible secret" "$(grep -rnEi "$secret_pat" skills/ install.sh RE
 
 # 4. The engine is vendor-free. Only the discovery and classifier references
 #    of intake-oss may name tool families, because they have to look for them.
-vendor_pat='canva|otter|jira|buildkite|slack|forge|easel|obshub|epilog'
+vendor_pat='jira|buildkite|slack|confluence|linear|grafana|datadog|sentry|pagerduty|sourcegraph'
 vendor_hits="$(grep -rniE "$vendor_pat" skills/ 2>/dev/null \
   | grep -vE '^skills/intake-oss/references/(discovery|classifier)\.md:')"
 report_lines "vendor word in engine" "$vendor_hits"

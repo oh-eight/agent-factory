@@ -31,9 +31,10 @@ cd ~/projects/agent-factory
 
 Targets: `~/.claude/skills`, `~/.cursor/skills`, `~/.agents/skills`. Pass
 `--target claude|cursor|codex|all` to choose. A target directory that
-another tool manages (it is itself a symlink, or holds symlinks into a
-`/.otter/` path) is skipped with a message. A real directory that collides
-with a skill name is moved to `<name>.pre-factory`.
+another tool manages (it is itself a symlink, or holds symlinks into a path
+matching one of the colon-separated substrings in `FACTORY_FOREIGN_MARKERS`)
+is skipped with a message. A real directory that collides with a skill name
+is moved to `<name>.pre-factory`.
 
 Requirements: `git`, `rg`, and whatever your tools are (the engine finds
 them). A GitHub or GitLab CLI that is logged in gets you PRs and CI; without
@@ -148,8 +149,8 @@ hand-written one instead: its own `SKILL.md` with a classifier for its hosts,
 a `references/<vendor>/profile.md` it copies into `$FACTORY_HOME`, and data
 files the profile points at (flake patterns, metric names, tracker
 hierarchy). The engine reads the profile and the files; it never learns the
-vendor's name. A Canva-specific front door of that shape lives in a separate
-dotfiles repository and vendors this engine next to it.
+vendor's name. A vendor-specific front door of that shape lives in its own
+repository and vendors this engine next to it.
 
 Trackers without a hosted option fall back to the file tracker
 (`skills/intake-oss/references/file-tracker.md`): one markdown file per

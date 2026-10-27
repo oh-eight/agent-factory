@@ -9,9 +9,10 @@
 #
 # A target directory is skipped when another tool owns it: when the
 # directory is itself a symlink, or when it contains symlinks that resolve
-# into a path containing "/.otter/". A real directory that would collide
-# with a link is moved aside to <name>.pre-factory. Idempotent; never execs
-# anything.
+# into a path matching one of the colon-separated substrings in
+# FACTORY_FOREIGN_MARKERS (unset by default). A real directory that would
+# collide with a link is moved aside to <name>.pre-factory. Idempotent;
+# never execs anything.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -63,21 +64,27 @@ harness_home() {
 
 # Prints a reason and returns 0 when the directory is owned by another tool.
 managed_reason() {
-  local dir="$1" entry raw abs
+  local dir="$1" entry raw abs marker markers
   if [ -L "$dir" ]; then
     printf 'directory is itself a symlink to %s\n' "$(readlink "$dir")"
     return 0
   fi
   [ -d "$dir" ] || return 1
+  markers="${FACTORY_FOREIGN_MARKERS:-}"
+  [ -n "$markers" ] || return 1
   for entry in "$dir"/* "$dir"/.[!.]*; do
     [ -L "$entry" ] || continue
     raw="$(readlink "$entry")"
     abs="$(resolve "$entry")"
-    case "$raw$abs" in
-      *"/.otter/"*)
-        printf 'contains links managed by another tool (%s -> %s)\n' "$(basename "$entry")" "$raw"
-        return 0 ;;
-    esac
+    IFS=: read -ra marker_list <<< "$markers"
+    for marker in "${marker_list[@]}"; do
+      [ -n "$marker" ] || continue
+      case "$raw$abs" in
+        *"$marker"*)
+          printf 'contains links managed by another tool (%s -> %s)\n' "$(basename "$entry")" "$raw"
+          return 0 ;;
+      esac
+    done
   done
   return 1
 }

@@ -59,7 +59,7 @@ sets `auth: unknown`. Never run a probe that writes.
 ## 2. CLIs on PATH
 
 ```bash
-for c in gh glab jira linear slack kubectl aws gcloud docker bk src cir circleci argocd rg claude; do
+for c in gh glab jira linear slack kubectl aws gcloud docker bk src circleci argocd rg claude; do
   command -v "$c" >/dev/null 2>&1 && echo "present $c" || echo "absent $c"
 done
 ```
@@ -129,7 +129,7 @@ For each capability, in order:
 
 1. Drop anything in `config.discovery.ignore`. An ignore entry matches a
    family name, or any MCP server name or tool prefix that contains it as a
-   substring (`otter` drops `plugin:otter-tools:otter` and `mcp__otter__`).
+   substring (`hub` drops `plugin:hub-tools:hub` and `mcp__hub__`).
 2. `tracker` only: a project-keyed family (keys like `ABC-123`) always
    outranks the repository host's issues (`gh issue`, `glab issue`),
    whatever their auth states. Repository issues are a tracker candidate
@@ -177,12 +177,12 @@ Facts found: the model sees tools named `mcp__hub__jira_get_issue`,
 `mcp__hub__jira_search`, `mcp__hub__jira_create`, `mcp__hub__slack_mcp_slack_send_message`,
 `mcp__hub__whoami`, `mcp__hub__bk_get_build_status_by_url`,
 `mcp__hub__bk_retry_failed_jobs`, `mcp__hub__sg_keyword_search`,
-`mcp__hub__obsapi_metrics_query_range`, `mcp__hub__pull_request_read`,
-`mcp__hub__confluence_get_page`, `mcp__hub__release_engine_get_pr_live_status`,
+`mcp__hub__grafana_query_prometheus`, `mcp__hub__pull_request_read`,
+`mcp__hub__confluence_get_page`, `mcp__hub__argocd_get_application`,
 `mcp__hub__rootly_list_incidents`, among others. `claude mcp list` prints
 `hub: hub mcp serve - ✔ Connected`. On PATH: `gh` (authenticated), `kubectl`,
-`aws`, `docker`, `rg`; absent: `glab`, `jira`, `linear`, `slack`, `bk`,
-`cir`. The current repository's remote is on `github.com` and has
+`aws`, `docker`, `rg`; absent: `glab`, `jira`, `linear`, `slack`, `bk`.
+The current repository's remote is on `github.com` and has
 `.buildkite/`.
 
 Only one authenticated tracker candidate (the jira family), a chat candidate
@@ -255,15 +255,15 @@ notes: |
   Repository has .buildkite/. GitHub checks are still read through pr.checks.
 
 ## obs
-tool: mcp:obsapi_metrics_query_range
+tool: mcp:grafana_query_prometheus
 auth: unknown
 ops:
-  logs_count: mcp:epilog_query_logs
+  logs_count: mcp:grafana_query_loki
   alerts_firing: none
   explore_link: none
 
 ## deploy
-tool: mcp:release_engine_get_pr_live_status
+tool: mcp:argocd_get_application
 
 ## incidents
 tool: mcp:rootly_list_incidents
@@ -272,7 +272,7 @@ tool: mcp:rootly_list_incidents
 tool: builtin:worktree+Agent
 
 ## knowledge
-tool: mcp:eng_handbook_search
+tool: mcp:glean_search
 
 ## design
 tool: none
