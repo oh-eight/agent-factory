@@ -58,9 +58,15 @@ for f in skills/*/agents/*.md; do
   fi
 done
 
-# 6. Shell scripts parse.
+# 6. Shell scripts parse. A skill script path that is not a readable regular
+#    file (a dangling symlink, a directory) fails too: the skill could not
+#    run it. A pattern that matches nothing is skipped.
 for s in install.sh tests/*.sh skills/*/scripts/*.sh; do
-  [ -f "$s" ] || continue
+  [ -e "$s" ] || [ -L "$s" ] || continue
+  if [ ! -f "$s" ] || [ ! -r "$s" ]; then
+    bad "$s: not a readable regular file"
+    continue
+  fi
   bash -n "$s" 2>/dev/null || bad "$s: does not parse"
 done
 
