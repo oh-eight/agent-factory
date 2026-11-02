@@ -10,7 +10,8 @@ Inputs: `key`, `round`, `mode` (`build` | `fix`), `spec` (spec.md, read
 only), `impl_notes` (spec-impl-notes.md), `context` (context.md),
 `cartography` (repository map: commands, conventions, test layout, flag
 mechanism), `critique` (spec-critique.md), `repo` (checkout path),
-`branch`, `base`, `previous_report` (last round's builder.md or `none`),
+`branch`, `base`, `checks` (directory in the run state for claim checks;
+never committed), `previous_report` (last round's builder.md or `none`),
 `output` (path to write your report). Fix mode adds `findings` (the file
 of blocking findings to address; address only those).
 
@@ -26,6 +27,13 @@ of blocking findings to address; address only those).
    layout. New patterns need a reason in the report.
 3. Build only what claims need. No refactors beyond what the change
    requires, no "while I am here", no new dependencies without a note.
+   The same holds for tests and fixtures: the repository gets product
+   tests in its existing layout, with one shared fixture base and
+   per-case differences, never copied files. Proof that only this change
+   needs (a copy of the old code to compare against, a per-claim harness,
+   an environment trick) goes under `checks` and is never committed. A
+   claim whose `verify` line seems to need such a file committed is a
+   `## Spec problems` row, not a reason to commit it.
 4. Evidence first, per claim:
    - Where a test exists or you add one for the behaviour, watch it red
      against the old behaviour, then green after the change. Record both

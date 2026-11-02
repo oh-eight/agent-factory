@@ -26,6 +26,7 @@ FACTORY_HOME="${FACTORY_HOME:-$HOME/.factory}"
 RUN="$FACTORY_HOME/<KEY>"            # must exist with status.json, intake.md, context.md
 N=$(jq .round "$RUN/status.json")    # round
 B="$RUN/build/round-$N"; mkdir -p "$B/shots" "$B/mutants" "$RUN/history"
+CHECKS="$RUN/checks"; mkdir -p "$CHECKS"   # claim checks: run state, never committed
 ```
 
 - `SKILL_DIR` is the directory holding this file. Role files are
@@ -193,9 +194,10 @@ same round unless `spec.md` changed since (compare with the snapshot).
 ### 5. builder (foreground)
 
 Inputs: `key`, `round`, `mode: build`, `spec`, `impl_notes`, `context`,
-`cartography`, `critique`, `repo`, `branch`, `base`, `previous_report`
+`cartography`, `critique`, `repo`, `branch`, `base`, `checks`
+(`$CHECKS`), `previous_report`
 (`$RUN/build/round-$((N-1))/builder.md` or `none`), `output`
-(`$B/builder.md`).
+(`$B/builder.md`). Every later builder and qa spawn also gets `checks`.
 
 Afterwards, in `REPO`:
 
@@ -240,6 +242,19 @@ First write the diff the reviewers share:
   with one line: `skipped: no ux claims and no frontend files`.
 
 After qa returns, confirm its tests are pushed the same way as step 5.
+Then check the test footprint mechanically:
+
+```bash
+cd "$REPO" && git diff --name-only --diff-filter=A "$BASE...HEAD" -z \
+  | xargs -0r sha256sum \
+  | awk '{ n[$(1)]++; f[$(1)] = f[$(1)] " " $(2) } END { for (h in n) if (n[h] > 1) print "duplicate files:" f[h] }'
+```
+
+Any output is a blocking finding `F-N-foot-1` (category `test-gap`,
+severity medium, repro: the command) for step 9: the branch adds
+byte-identical files, which means a fixture was copied instead of shared.
+Record `git diff --shortstat "$BASE...HEAD"` and the same for paths
+cartography names as tests, for `summary.md`.
 
 Output: `$B/qa.md`, `$B/security.md`, `$B/ux.md`.
 
@@ -249,7 +264,8 @@ Skip when `config.mutation` is `false` (write `$B/mutation.md` with
 `skipped: config.mutation=false`). Otherwise record
 `git -C "$REPO" status --porcelain > /tmp/before.txt`, then spawn with
 inputs `key`, `round`, `spec`, `cartography`, `repo`, `base`, `qa_report`,
-`scratch` (`$B/mutants/`), `max_mutants: 10`, `output` (`$B/mutation.md`).
+`checks` (`$CHECKS`, run QA's claim checks too), `scratch` (`$B/mutants/`),
+`max_mutants: 10`, `output` (`$B/mutation.md`).
 The auditor uses the language-specific mutation tool named by cartography
 or the profile when there is one, else up to 10 hand mutants on changed
 functions in a scratch copy under `scratch`, running QA's tests per mutant
@@ -271,7 +287,9 @@ Output: `$B/mutation.md`, optionally `$B/qa-kill.md`.
 Take the test ids from `## Tests added or changed` in `qa.md` (and
 `qa-kill.md`). For each, run cartography's single-test command
 `config.burn_in_runs` times (default 5), or cartography's flake-check
-command once when it names one. Write `$B/burn-in.md`:
+command once when it names one. A line starting `checks:` is a claim check
+under `$CHECKS`; run its command as written, the same number of times.
+Write `$B/burn-in.md`:
 
 ```markdown
 # Burn-in: KEY — round N
@@ -342,6 +360,8 @@ branch: <name>  head: <sha>  base: <base>@<sha>
 ## How to run changes
 ## Passes
 spec-writer: 2  builder: 1+1  qa: 1+1  inner: 1/3  spawns: 9
+## Footprint
+repo: <files changed, +/- lines>  tests: <files, +/- lines>  duplicates: 0  claim checks: <files under $CHECKS>
 ## Deferred
 <one line per row of deferred.md>
 ## Open

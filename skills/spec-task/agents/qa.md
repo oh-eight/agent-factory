@@ -10,6 +10,7 @@ Inputs: `key`, `round`, `mode` (`test` | `kill-survivors` | `retest` |
 `fix-flaky`), `spec` (spec.md), `context` (context.md), `cartography`
 (test layout, commands, conventions), `repo`, `branch`, `base`,
 `builder_report` (builder.md, or the fix-pass builder report in retest),
+`checks` (directory in the run state for claim checks; never committed),
 `previous_report` (last round's qa.md or `none`), `output` (path to write
 your report). Modes other than `test` add `findings` (mutation.md,
 burn-in.md or the fix-pass file).
@@ -23,6 +24,23 @@ burn-in.md or the fix-pass file).
    the real code path with realistic fakes for anything that crosses a
    module, process, store or UI boundary. A unit test that mocks the
    thing under test is not evidence; assert on real output.
+   Then decide where each test goes, before you write it:
+   - **Product test, in the repository**: behaviour a maintainer must
+     keep, in the layout and style cartography names. Add a row or case
+     to an existing table or file before adding a file. Fixtures are one
+     shared base plus per-case differences (a table row, a parameter, a
+     patch); never a copy of a base file per case, never a directory or
+     file per field.
+   - **Claim check, under `checks`**: proof that this change meets this
+     spec, which nobody would miss once it merges. One-test-per-claim
+     harnesses, comparisons against the old implementation (and any copy
+     of the old code they need), stubbed PATHs, signals, size limits,
+     mutation helpers. Never committed; burn-in and the mutation auditor
+     run them from `checks`.
+   The test: if a maintainer deleted it six months from now, would a
+   regression slip through? Yes → product test. No → claim check. Keep
+   the product suite to what the claims need; a claim already proven by
+   a product test needs no claim check.
 3. Red before green. For each new test, where practical, make it fail
    against the old behaviour and record the failing output: revert the
    builder's commit for that area locally (`git revert --no-commit <sha>`
@@ -37,7 +55,8 @@ burn-in.md or the fix-pass file).
    is reported with its first occurrence, not hidden.
 6. Behaviour that disagrees with `expect` is a finding in the shape
    below; the test stays in the tree, failing, so the builder sees red.
-7. Commit `<key>: tests for C1, C3` and `git push -u origin <branch>`.
+7. Commit only product tests and their fixtures: `<key>: tests for C1, C3`
+   and `git push -u origin <branch>`. Nothing under `checks` is committed.
    Report `pushed: yes` only after `git log origin/<branch>..HEAD` prints
    nothing.
 8. Claims with no feasible automated test: say why, run the `verify` line
@@ -81,7 +100,14 @@ suite: <command> → <passed>/<total>, failed: <ids or none>
 | claim | why | manual check and result |
 
 ## Tests added or changed
-<one test id per line, runnable alone with cartography's single-test command>
+<one test id per line, runnable alone with cartography's single-test command;
+claim checks as `checks: <command>`, runnable from any directory>
+
+## Footprint
+repo test files added: <n>  changed: <n>  lines: +<n> -<n>
+fixture files added: <n>  duplicate files: 0
+claim checks under checks/: <files>
+<one line per new repo test file: why no existing file or table fit>
 
 ## Retest            # retest and kill-survivors modes
 | finding | status (closed/open) | evidence |
@@ -89,6 +115,7 @@ suite: <command> → <passed>/<total>, failed: <ids or none>
 
 `## Tests added or changed` feeds the burn-in; keep ids exact.
 
-Return under 30 lines: tests added by level, red-seen count versus total,
-suite result, findings as one line each with blocking flag, claims with
-no automated test, head sha and pushed.
+Return under 30 lines: tests added by level and place (repo or checks),
+red-seen count versus total, suite result, the footprint line, findings
+as one line each with blocking flag, claims with no automated test, head
+sha and pushed.
