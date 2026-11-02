@@ -438,6 +438,12 @@ t_C19() {
     ( cd "$F/$c" && TMPDIR=/nonexistent/x "$L" $(cat args) > /dev/null 2>&1; echo $? ) > "$TMP/x"
     case "$(cat "$TMP/x")" in 1|2) ;; *) bad "$c with TMPDIR=/nonexistent/x: exit $(cat "$TMP/x")" ;; esac
   done
+  # F-1-sec-1: a temp-file write that fails (file size limit; with SIGXFSZ
+  # ignored the write gets EFBIG, as on a full disk) exits 2, prints nothing.
+  for c in r3 good; do
+    check "$c, temp writes killed" "$(cd "$F/$c" && { ( ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" exit=2
+    check "$c, temp writes fail" "$(cd "$F/$c" && { ( trap '' XFSZ; ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" exit=2
+  done
   # The fixture dirs stay as checked in.
   check "fixtures untouched" "$(git -C "$REPO" status --porcelain -- tests/fixtures)" ""
 }
