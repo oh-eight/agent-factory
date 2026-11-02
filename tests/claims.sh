@@ -257,7 +257,12 @@ t_C10() {
     "$(lines 'R7 want [claims: 3  pass: 2  fail: 1  unverifiable: 0  attempts: 12  deferred: 0] have [claims: 3  pass: 2  fail: 1  unverifiable: 0  attempts: 999  deferred: 0]' exit=1)"
   check "R1 still checked" "$(on good-after-triage m_c4_done --after-triage spec.md round.md)" \
     "$(lines 'R1 verdict' 'R6 want FINDINGS have DONE' exit=1)"
+  # Hostile: two verdict lines. R6 reads the first one only; R1 flags the
+  # second. Nothing but R<n> lines on stdout.
+  check "two verdict lines" "$(on good-after-triage m_c10_twoverdicts --after-triage spec.md round.md)" \
+    "$(lines 'R1 verdict' exit=1)"
 }
+m_c10_twoverdicts() { sed -i '0,/^verdict: FINDINGS$/s//verdict: FINDINGS\nverdict: CLEAN/' round.md; }
 
 t_C11() {
   check "(a) only finding deferred" "$(on good-after-triage m_c11_a --after-triage spec.md round.md)" exit=0
@@ -866,6 +871,21 @@ t_C33() {
       for c in good good-after-triage r2 r3 r4 r5 r6 r7; do
         check "$t $mode, $c" "$(c33_judge "$c" "$B")" ok2
       done
+    done
+  done
+  # Hostile: grep fails (exit 2) only when it counts (-c, -cE) and works
+  # otherwise, so R2 and R4 run and only the R1/R6/R7 counts can stop the
+  # run. A failed count must give exit 2 and no stdout, not an empty count
+  # (an R1 line, or an R7 want with blank numbers).
+  local realgrep sel
+  realgrep="$(command -v grep)"
+  for sel in '-c|-cE' '-cE' '-c'; do
+    B="$(mktemp -d "$TMP/p.XXXXXX")"
+    c33_path "$B" grep
+    printf '#!/bin/sh\ncase "$1" in %s) exit 2 ;; esac\nexec %s "$@"\n' "$sel" "$realgrep" > "$B/grep"
+    chmod +x "$B/grep"
+    for c in good good-after-triage r1 r7; do
+      check "grep $sel exit2, $c" "$(c33_judge "$c" "$B")" ok2
     done
   done
   # Hostile: ulimit -f 0 changes nothing (the script writes no file).
