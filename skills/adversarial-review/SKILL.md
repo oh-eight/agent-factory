@@ -161,11 +161,15 @@ It prints one `R<n> …` line per failure. Exit 0: pass. Exit 1: lint
 failure. Any other exit: stop the round and report stderr; never a pass,
 never INVALID.
 
-An `R7 want [<line>] have [<line>]` line is the merge's own error, not a
-persona's: write the `want` line as the line after `## Coverage` and run
-the script again. It never re-prompts a persona.
+An R1 or R7 line is a merge error of this skill, never of a persona: step 4
+writes the header verdict and the Coverage line. For R1, rewrite the header
+verdict line as step 4 says (exactly one `verdict:` line). For R7, write the
+`want` line of `R7 want [<line>] have [<line>]` as the line after
+`## Coverage`, adding that heading when it is missing. Then run the script
+again. If an R1 or R7 line is still printed after that rerun, record INVALID
+as below. This never re-prompts a persona.
 
-On an R1–R5 failure, find the persona at fault: R3 names it; for R2, R4, R5
+On an R2–R5 failure, find the persona at fault: R3 names it; for R2, R4, R5
 grep the per-persona files for the claim, finding or path. Re-prompt that
 persona **once**: same inputs plus
 `- relint: <rule numbers and the failing lines>` and
