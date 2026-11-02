@@ -623,8 +623,21 @@ t_C31() {
   check "files outside the area" "$(git -C "$REPO" diff --name-only "$BASE"...HEAD | grep -cvE '^(skills/adversarial-review/|tests/|README\.md$)')" 0
   check "untouchable files" "$(git -C "$REPO" diff --name-only "$BASE"...HEAD -- tests/toy-repo.sh skills/adversarial-review/agents/ \
     skills/adversarial-review/references/triage.md skills/adversarial-review/references/attack-catalogue.md | wc -l | tr -d ' ')" 0
-  check "report-template rule lines" "$(git -C "$REPO" diff "$BASE"...HEAD -- skills/adversarial-review/references/report-template.md \
-    | grep -cE '^-[1-7]\. |^-   ')" 0
+  # Round 2 verify: a pinned count and hash of every file outside the area,
+  # as on main@18e2a1a. (report-template.md's rule 6 is reworded on purpose
+  # now; C34 pins the rest of that file.)
+  local W
+  W="$(mktemp -d "$TMP/c31.XXXXXX")"
+  ( cd "$REPO" && find . -path ./.git -prune -o -type f -print0 | LC_ALL=C sort -z \
+    | grep -zvE '^\./(skills/adversarial-review/|tests/|README\.md$|site/public/)|(^|/)\.DS_Store$|\.tmp$' ) > "$W/list"
+  check "file count" "$(tr -cd '\0' < "$W/list" | wc -c | tr -d ' ')" 69
+  check "aggregate hash" "$(cd "$REPO" && xargs -0 sha256sum < "$W/list" | sha256sum | cut -c1-64)" \
+    b42e741dc6c633af622a0e424f44354e688bb0b7ac490ab8c5640c17fb096add
+  check "protected files" "$(cd "$REPO" && sha256sum tests/toy-repo.sh skills/adversarial-review/agents/verifier.md \
+    skills/adversarial-review/references/triage.md skills/adversarial-review/references/attack-catalogue.md | cut -c1-16)" \
+    "$(lines ee85e583dccfb3e2 5a084c9128d5e059 d938cd2df9c17286 b9717dccbc63372a)"
+  check "agents dir" "$(ls -A "$REPO/skills/adversarial-review/agents")" verifier.md
+  check "top-level names" "$(tr '\0' '\n' < "$W/list" | cut -d/ -f2 | LC_ALL=C sort -u | tr '\n' ' ')" ".github .gitignore install.sh site skills "
 }
 
 all="C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 C20 C21 C22 C23 C24 C25 C26 C27 C28 C29 C30 C31"
