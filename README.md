@@ -204,7 +204,9 @@ name across all skills. Each has fixture cases in
 `tests/fixtures/<script name without .sh>/<case>/`, holding `args` (one
 line of arguments), `expected-stdout` (exact bytes), `expected-exit` and any
 data files; `tests/scripts.sh` runs each case from its directory, and a
-script without cases fails it. `tests/lint.sh` runs it too.
+script without cases fails it. `tests/lint.sh` runs it too. A script must
+be executable: run `chmod +x` on it before `git add`, so it is committed
+with mode 100755 and the skill can call it by path.
 
 The toy repo has one deliberate gap: `sum.py` does not handle non-numeric
 input. Run `/intake-oss "add a sum command that adds its integer arguments"`
