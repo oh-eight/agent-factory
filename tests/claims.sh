@@ -421,8 +421,17 @@ t_C18() {
   check "pattern opened paths" "$(on good m_c18_regexpath spec.md round.md)" "$(lines 'R5 bin/too..c' 'R5 [b]in/tool.c' exit=1)"
 }
 
+# F-1-sec-1: each mutation makes exactly one temp file outgrow 1 KiB (an
+# 1100-digit id), so `ulimit -f 1` fails that write and no earlier one.
+big()            { printf '%01100d' 7; }
+m_c19_claims()   { printf '\n### C%s: long id\n- type: functional\n- status: open\n' "$(big)" >> spec.md; }
+m_c19_verdicts() { sed -i "s/^## Findings\$/### C$(big) — PASS\n\n## Findings/" round.md; }
+m_c19_need()     { sed -i "s/^### C4 — FAIL → F-1-1\$/### C4 — FAIL → F-1-$(big)/" round.md; }
+m_c19_have()     { sed -i "s/^## Spec-level findings\$/### F-9-$(big)  fingerprint: long\n- repro: x\n\n## Spec-level findings/" round.md; }
+m_c19_entry()    { sed -i "s|^## Entry points\$|## Entry points\n- \`lib/$(big).c\`: long|" spec.md; }
+
 t_C19() {
-  local w B TT c
+  local w B TT c m x
   w="$(work good)"
   B="$TMP/c19.sha"
   TT="$(mktemp -d "$TMP/tt.XXXXXX")"
@@ -443,6 +452,15 @@ t_C19() {
   for c in r3 good; do
     check "$c, temp writes killed" "$(cd "$F/$c" && { ( ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" exit=2
     check "$c, temp writes fail" "$(cd "$F/$c" && { ( trap '' XFSZ; ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" exit=2
+  done
+  # The same for each temp file on its own, cut off part way (1 KiB limit).
+  for m in claims verdicts need have entry; do
+    w="$(work good)"
+    ( cd "$w" && "m_c19_$m" ) || bad "mutation m_c19_$m failed"
+    x="$(cd "$w" && { "$L" spec.md round.md > /dev/null 2>&1; echo "$?"; })"
+    case "$x" in 0|1) ;; *) bad "$m, no limit: exit $x, want 0 or 1" ;; esac
+    check "$m, temp write killed past 1 KiB" "$(cd "$w" && { ( ulimit -f 1; "$L" spec.md round.md ) 2>/dev/null; echo "exit=$?"; })" exit=2
+    check "$m, temp write fails past 1 KiB" "$(cd "$w" && { ( trap '' XFSZ; ulimit -f 1; "$L" spec.md round.md ) 2>/dev/null; echo "exit=$?"; })" exit=2
   done
   # The fixture dirs stay as checked in.
   check "fixtures untouched" "$(git -C "$REPO" status --porcelain -- tests/fixtures)" ""
