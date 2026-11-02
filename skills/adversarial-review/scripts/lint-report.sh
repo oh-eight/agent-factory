@@ -75,7 +75,7 @@ nomatch() { [ "$1" -le 1 ] || norun "$2"; }
 lines() { [ -z "$1" ] || printf '%s\n' "$1"; }
 
 # The rule bodies below are the inline step-5 block from SKILL.md as it was
-# (tests/fixtures/lint-report/old-step5.sh), with min=3 replaced by the
+# (adversarial-review SKILL.md step 5 at 18e2a1a), with min=3 replaced by the
 # option, temp files replaced by variables, and every exit status checked.
 # Keep regexes and output text unchanged: the skill and the fixtures depend
 # on them byte for byte.
@@ -119,11 +119,9 @@ entry=$(awk '/^## Entry points/{p=1;next} /^## /{p=0} p' "$S") || norun R5
 awk '/^## Files opened/{p=1;next} /^## /{p=0} p' "$R" \
   | { grep -oE '[^ ]+\.(java|kt|ts|tsx|js|py|go|rs|rb|cs|swift|scala|c|cpp|h)$' || [ $? = 1 ]; } \
   | { grep -vE '^(/|\$HOME|~)' || [ $? = 1 ]; } \
-  | while read -r f; do
-      # The path goes in as a pattern file, so no length is too long for it.
-      grep -qF -f <(printf '%s\n' "$f") <(lines "$entry")
-      case $? in 0) ;; 1) echo "R5 $f" ;; *) exit 2 ;; esac
-    done || norun R5
+  | awk 'FILENAME == ARGV[1] { e[++n] = $0; next }
+         { for (i = 1; i <= n; i++) if (index(e[i], $0)) next; print "R5 " $0 }' \
+      <(lines "$entry") - || norun R5
 
 # R6 header verdict after triage (--after-triage only). BLOCKED when there is
 # at least one claim section and every one is UNVERIFIABLE; else CLEAN when no

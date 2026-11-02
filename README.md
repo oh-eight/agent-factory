@@ -200,13 +200,15 @@ tests/toy-repo.sh      # creates $HOME/tmp/pipeline-toy (a sum CLI with two test
 ```
 
 Executable checks live in `skills/<name>/scripts/*.sh`, one script per
-name across all skills. Each has fixture cases in
-`tests/fixtures/<script name without .sh>/<case>/`, holding `args` (one
-line of arguments), `expected-stdout` (exact bytes), `expected-exit` and any
-data files; `tests/scripts.sh` runs each case from its directory, and a
-script without cases fails it. `tests/lint.sh` runs it too. A script must
-be executable: run `chmod +x` on it before `git add`, so it is committed
-with mode 100755 and the skill can call it by path.
+name across all skills. Their fixtures live in
+`tests/fixtures/<script name without .sh>/`: the base data files plus one
+`cases` file. Each case names its args, expected exit code and expected
+stdout, and may carry a unified diff that `tests/scripts.sh` applies to a
+fresh copy of the base files before running the script there. The header of
+`tests/fixtures/lint-report/cases` documents the format. Add a case, not a
+directory or a copy of the base files. A script without cases fails
+`tests/scripts.sh`, which `tests/lint.sh` runs too. A script must be
+executable: run `chmod +x` on it before `git add`.
 
 The toy repo has one deliberate gap: `sum.py` does not handle non-numeric
 input. Run `/intake-oss "add a sum command that adds its integer arguments"`
