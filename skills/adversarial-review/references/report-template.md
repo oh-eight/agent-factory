@@ -92,3 +92,7 @@ fingerprints for `ledger.json` and the valve.
 
 A report that says CLEAN and fails any rule is INVALID. The skill re-prompts
 the persona once with the failing rule numbers, then records INVALID.
+
+The executable form of this list is `scripts/lint-report.sh` in this
+skill: its default mode checks rules 1–5 and 7 (step 5), and
+`--after-triage` checks all seven (step 6). The two must agree.
