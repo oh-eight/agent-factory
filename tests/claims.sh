@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Acceptance tests for oh-eight/agent-factory#2: lint-report.sh, the
 # tests/scripts.sh and tests/lint.sh runners, and the adversarial-review
-# SKILL.md and README text. One function per spec claim (t_C1 .. t_C31).
+# SKILL.md and README text. One function per spec claim (t_C1 .. t_C35).
 #
 #   bash tests/claims.sh            # every claim
 #   bash tests/claims.sh C4 C17     # only these claims
@@ -9,7 +9,8 @@
 # Prints "ok C<n>" per passing claim and "FAIL: C<n>: ..." per failed check,
 # then "claims ok" and exit 0 when everything passed, else exit 1.
 # Never edits the checkout: mutations run on copies under a temp directory.
-# C14 needs commit 18e2a1a (the pre-change inline lint) in the history.
+# The old-lint oracle is tests/fixtures/lint-report/old-step5.sh; C14 also
+# checks it against commit 18e2a1a when that commit is in the history.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -125,13 +126,23 @@ m_c14_nocommas() { sed -i 's/^personas: .*/personas: fuzzer attacker stranger/' 
 m_c14_tenth()    { sed -i '0,/^  3\. /s//  3. x\n  10. /' round.md; }
 m_c14_nofiles()  { sed -i '/^## Files opened$/,/^## /{/^## /!d}' round.md; }
 m_c14_crlf()     { sed -i 's/$/\r/' round.md; }
+m_c14_uxless()   { sed -i '0,/^- type: functional$/s//- type: uxless/' spec.md; }
+m_c14_dupsect()  { sed -i 's/^### C4 — FAIL → F-1-1$/### C1 — PASS\n- attempts (fuzzer):\n  1. again\n\n### C4 — FAIL → F-1-1/' round.md; }
+m_c14_escpers()  { sed -i 's/^personas: .*/personas: fuzzer, attacker, stranger, a\\tb, x\\/' round.md; }
+m_c14_longentry() { awk 'BEGIN{while(length(L)<140000) L=L "abcdefghij"} {print} /^## Entry points$/{print L}' spec.md > s.tmp && mv s.tmp spec.md; }
+m_c14_longpath() { awk 'BEGIN{while(length(L)<140000) L=L "abcdefghij"} {print} /^## Files opened$/{print L ".c"}' round.md > r.tmp && mv r.tmp round.md; }
+m_c14_moreclaims() { m_c14_many; for i in 13 14; do printf '\n### C%s: more\n- type: functional\n' "$i" >> spec.md; done; }
+# Known gaps (spec Non-goals) stay as the old block had them.
+m_c8_stray()     { sed -i '/^- repro:/d; s|^## Files opened$|## Files opened\n- repro: stray|' round.md; }
+m_c9_homex()     { sed -i 's|^## Files opened$|## Files opened\n$HOMEX/lib/a.c|' round.md; }
 
 # Every default-mode mutation, for the C14 oracle comparison.
 DEFAULT_MUTATIONS="m_c4_done m_c4_second m_c4_trailing m_c4_capital m_c4_nospace m_c4_none
   m_c5_extra m_c5_unremoved m_c5_unknown m_c7_noux m_c7_critic m_c8_nofinding m_c8_norepro
   m_c8_reason m_c8_dangling m_c9_outside m_c9_exempt m_c13_999 m_c13_gone m_c13_squeezed
   m_c16_empty m_c16_garbage m_c17_inject m_c17_more m_c18_pattern m_c18_regexpath m_c14_many m_c14_nocommas
-  m_c14_tenth m_c14_nofiles m_c14_crlf"
+  m_c14_tenth m_c14_nofiles m_c14_crlf m_c14_uxless m_c14_dupsect m_c14_escpers m_c14_longentry
+  m_c14_longpath m_c14_moreclaims m_c8_stray m_c9_homex"
 
 t_C1() {
   local d out
@@ -284,7 +295,9 @@ t_C13() {
 }
 
 # same_as_oracle <dir>: default-mode output of the script equals the old
-# inline block's, and the exit is 1 exactly when the oracle printed.
+# inline block's (tests/fixtures/lint-report/old-step5.sh), and the exit is 1
+# exactly when the oracle printed.
+OLD="$F/old-step5.sh"
 same_as_oracle() {
   local d="$1" label="$2" old new e
   old="$(cd "$d" && S=spec.md R=round.md T="$(mktemp -d "$TMP/t.XXXXXX")" bash "$OLD" 2>/dev/null)"
@@ -294,16 +307,47 @@ same_as_oracle() {
   if [ -n "$old" ]; then [ "$e" = 1 ] || bad "$label: exit $e, oracle printed"; else [ "$e" = 0 ] || bad "$label: exit $e, oracle silent"; fi
 }
 
+C14_CASES="good r1 r2 r2-unknown r3 r3-ux r4 r4-no-repro r5 r5-exempt r7"
+
 t_C14() {
-  if ! git -C "$REPO" cat-file -e "$BASE:skills/adversarial-review/SKILL.md" 2>/dev/null; then
-    bad "base $BASE not in history: fetch it to build the oracle"
-    return
+  [ -f "$OLD" ] || { bad "oracle $OLD missing"; return; }
+  # The spec's verify: pinned input hashes, live output, then the oracle
+  # (without pipefail, as the spec runs it: a lint exit 1 is not a mismatch).
+  local c got=""
+  for c in $C14_CASES; do
+    got="$got$(set +o pipefail; cd "$F/$c" && echo "$c [$(cat args)] $(sha256sum spec.md round.md expected-stdout | cut -c1-16 | tr '\n' ' ')$("$L" spec.md round.md 2>/dev/null | cmp -s - expected-stdout && echo same || echo differs)")
+"
+  done
+  check "pinned table" "$got" "$(lines \
+    'good [spec.md round.md] 79d3f1077820cbd7 fef1f46f265c0371 e3b0c44298fc1c14 same' \
+    'r1 [spec.md round.md] 79d3f1077820cbd7 e792e3647f6f0342 aac855940c71c173 same' \
+    'r2 [spec.md round.md] 635bf1ae2b6c1e51 fef1f46f265c0371 58d4ce1e80a54bc6 same' \
+    'r2-unknown [spec.md round.md] 92ce691601265cdd fef1f46f265c0371 6a6ada571244ce83 same' \
+    'r3 [spec.md round.md] 79d3f1077820cbd7 0d67170d9c05657d f9cf0ca70ad19dfd same' \
+    'r3-ux [spec.md round.md] e43169c7134fbcf0 fef1f46f265c0371 155765907152dbd9 same' \
+    'r4 [spec.md round.md] 79d3f1077820cbd7 1826d0bb4fd3e492 554cd4dfd0f5edd6 same' \
+    'r4-no-repro [spec.md round.md] 79d3f1077820cbd7 a1dd81fe44765487 73da0530d3dd1abc same' \
+    'r5 [spec.md round.md] 79d3f1077820cbd7 799ebb36eccacf0e b46dd50369994777 same' \
+    'r5-exempt [spec.md round.md] 79d3f1077820cbd7 a3c6aeefb290033a e3b0c44298fc1c14 same' \
+    'r7 [spec.md round.md] 79d3f1077820cbd7 f98197008ecf33ee 38dfb503aba614bf same')
+"
+  check "oracle hash" "$(sha256sum "$OLD" | cut -c1-16)" 0d3862443fe80849
+  check "oracle lines" "$(wc -l < "$OLD" | tr -d ' ')" 47
+  got=""
+  for c in $C14_CASES; do
+    got="$got$(set +o pipefail; cd "$F/$c" && T=$(mktemp -d "$TMP/t.XXXXXX") && S=spec.md R=round.md T="$T" bash "$OLD" 2>/dev/null | cmp -s - expected-stdout && echo "$c oracle same" || echo "$c oracle differs")
+"
+  done
+  check "oracle on the cases" "$got" "$(for c in $C14_CASES; do echo "$c oracle same"; done)
+"
+  # The oracle is the step-5 block of main@18e2a1a byte for byte (when that
+  # commit is in the history; a shallow clone skips this one check).
+  if git -C "$REPO" cat-file -e "$BASE:skills/adversarial-review/SKILL.md" 2>/dev/null; then
+    git -C "$REPO" show "$BASE:skills/adversarial-review/SKILL.md" | awk '/^### 5\. /{p=1} /^### 6\. /{p=0} p' \
+      | awk '/^```bash/{f=1;next} /^```/{f=0} f' | cmp -s - "$OLD" || bad "old-step5.sh differs from step 5 at $BASE"
   fi
-  OLD="$TMP/old.sh"
-  git -C "$REPO" show "$BASE:skills/adversarial-review/SKILL.md" | awk '/^### 5\. /{p=1} /^### 6\. /{p=0} p' \
-    | awk '/^```bash/{f=1;next} /^```/{f=0} f' > "$OLD"
-  [ -s "$OLD" ] || { bad "oracle is empty"; return; }
-  local c m w loc
+  # Every case dir and every default-mode mutation, under three locales.
+  local m w loc
   for loc in C C.UTF-8 ""; do
     for c in "$F"/*/; do
       w="$(work "$(basename "$c")")"
@@ -458,6 +502,46 @@ t_C19() {
     done
     check "$s interrupts leave nothing" "$(ls -A "$TS" | wc -l | tr -d ' ')" 0
   done
+  # Hostile: other delays and more runs, and a signal sent with kill to a
+  # run started in the background.
+  local d k pid
+  for s in TERM HUP INT; do
+    TS="$(mktemp -d "$TMP/ts.XXXXXX")"
+    for d in 0.001 0.003 0.005 0.01 0.02 0.04 0.08 0.12 0.2; do
+      ( cd "$w" && TMPDIR=$TS timeout -s "$s" "$d" "$L" --after-triage spec.md round.md > /dev/null 2>&1 )
+    done
+    for k in $(seq 15); do
+      ( cd "$w" && exec env TMPDIR="$TS" "$L" spec.md round.md > /dev/null 2>&1 ) &
+      pid=$!
+      sleep "0.00$((k % 9 + 1))"
+      kill -s "$s" "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null
+    done
+    check "$s, other delays and kill: leftovers" "$(ls -A "$TS" | wc -l | tr -d ' ')" 0
+  done
+  # Hostile: concurrent runs sharing one TMPDIR each give their own result.
+  TS="$(mktemp -d "$TMP/ts.XXXXXX")"
+  for k in $(seq 12); do
+    for c in good r3 r5; do
+      ( cd "$F/$c" && { TMPDIR=$TS "$L" $(cat args) 2>/dev/null; echo "exit=$?"; } > "$TMP/c19.$c.$k" ) &
+    done
+  done
+  wait
+  for k in $(seq 12); do
+    for c in good r3 r5; do
+      check "concurrent $c #$k" "$(cat "$TMP/c19.$c.$k")" "$(cat "$F/$c/expected-stdout"; echo "exit=$(cat "$F/$c/expected-exit")")"
+    done
+  done
+  check "concurrent: leftovers" "$(ls -A "$TS" | wc -l | tr -d ' ')" 0
+  # Hostile: read-only inputs in a read-only directory are read, not written.
+  local ro
+  ro="$(work good)"
+  sed -i 's/^verdict: FINDINGS$/verdict: DONE/' "$ro/round.md"
+  ( cd "$ro" && sha256sum spec.md round.md > "$TMP/c19ro.sha" )
+  chmod 444 "$ro/spec.md" "$ro/round.md"; chmod 555 "$ro"
+  check "read-only inputs" "$(lint_in "$ro" spec.md round.md)" "$(lines 'R1 verdict' exit=1)"
+  check "read-only inputs unchanged" "$(cd "$ro" && sha256sum -c --quiet "$TMP/c19ro.sha" && echo unchanged)" unchanged
+  chmod 755 "$ro"
   # The fixture dirs stay as checked in.
   check "fixtures untouched" "$(git -C "$REPO" status --porcelain -- tests/fixtures)" ""
 }
@@ -489,18 +573,37 @@ t_C21() {
   for h in '### 5. ' '### 6. ' '### 7. '; do grep -q "^$h" "$M" || bad "heading [$h] missing"; done
 }
 
+# c22_fails <rel path> <want text> <setup cmd...>: on a fresh repo copy, after
+# the setup (run in the copy's skills/pipeline/scripts), tests/lint.sh prints a
+# FAIL line naming skills/<rel path> and containing <want text>, no "lint ok",
+# and exits 1.
+c22_fails() {
+  local name="$1" want="$2" C out
+  shift 2
+  C="$(repo_copy)"
+  mkdir -p "$C/skills/pipeline/scripts" "$(dirname "$C/skills/$name")"
+  ( cd "$C/skills/pipeline/scripts" && "$@" ) || { bad "$name: setup failed"; return; }
+  out="$(timeout 60 bash "$C/tests/lint.sh"; echo "exit=$?")"
+  printf '%s\n' "$out" | grep -E '^FAIL:' | grep -F "skills/$name" | grep -qF -- "$want" \
+    || bad "$name: no FAIL line naming it with [$want]: $out"
+  check "$name: last line" "$(printf '%s\n' "$out" | tail -n 1)" exit=1
+  printf '%s\n' "$out" | grep -qx 'lint ok' && bad "$name: lint ok printed"
+}
+c22_broken() { printf '#!/usr/bin/env bash\nif then fi\n' > "$1"; }
+
 t_C22() {
-  local C out
-  for name in pipeline/scripts/broken.sh "adversarial-review/scripts/broken.sh" "pipeline/scripts/broken script.sh"; do
-    C="$(repo_copy)"
-    mkdir -p "$(dirname "$C/skills/$name")"
-    printf '#!/usr/bin/env bash\nif then fi\n' > "$C/skills/$name"
-    out="$(bash "$C/tests/lint.sh"; echo "exit=$?")"
-    printf '%s\n' "$out" | grep -E '^FAIL:' | grep -F "skills/$name" | grep -qF 'does not parse' \
-      || bad "$name: no parse FAIL line: $out"
-    check "$name: last line" "$(printf '%s\n' "$out" | tail -n 1)" exit=1
-    printf '%s\n' "$out" | grep -qx 'lint ok' && bad "$name: lint ok printed"
-  done
+  # (a) does not parse, also in adversarial-review and with a space or a
+  # leading dash in the name.
+  c22_fails pipeline/scripts/broken.sh 'does not parse' c22_broken broken.sh
+  c22_fails adversarial-review/scripts/broken.sh 'does not parse' c22_broken ../../adversarial-review/scripts/broken.sh
+  c22_fails "pipeline/scripts/broken script.sh" 'does not parse' c22_broken "broken script.sh"
+  c22_fails pipeline/scripts/-n.sh 'does not parse' c22_broken ./-n.sh
+  # (b) a dangling symlink, (c) a directory.
+  c22_fails pipeline/scripts/gone.sh 'skills/pipeline/scripts/gone.sh' ln -s missing-target.sh gone.sh
+  c22_fails pipeline/scripts/notascript.sh 'skills/pipeline/scripts/notascript.sh' mkdir notascript.sh
+  # Hostile: a symlink to a directory, a fifo.
+  c22_fails pipeline/scripts/dirlink.sh 'skills/pipeline/scripts/dirlink.sh' ln -s /tmp dirlink.sh
+  c22_fails pipeline/scripts/fifo.sh 'skills/pipeline/scripts/fifo.sh' mkfifo fifo.sh
 }
 
 t_C23() {
@@ -578,6 +681,11 @@ t_C25() {
 }
 
 t_C26() {
+  local f got=""
+  for f in "$L" "$REPO/tests/scripts.sh"; do [ -f "$f" ] && [ -x "$f" ] && got="${got}executable
+"; done
+  check "executable" "$got" "$(lines executable executable)
+"
   check "modes" "$(git -C "$REPO" ls-files -s skills/adversarial-review/scripts/lint-report.sh tests/scripts.sh | cut -c1-6)" \
     "$(lines 100755 100755)"
   check "shebangs" "$(head -qn1 "$L" "$REPO/tests/scripts.sh")" "$(lines '#!/usr/bin/env bash' '#!/usr/bin/env bash')"
@@ -589,7 +697,24 @@ t_C27() {
     atleast "README scripts.sh" "$(awk '/^## Lints and the toy repo/{p=1;next} /^## /{p=0} p' README.md | grep -c 'tests/scripts.sh')" 1
     atleast "README fixtures" "$(awk '/^## Lints and the toy repo/{p=1;next} /^## /{p=0} p' README.md | grep -c 'tests/fixtures/')" 1
     atleast "report-template script" "$(grep -c 'scripts/lint-report.sh' skills/adversarial-review/references/report-template.md)" 1
+    atleast "README chmod +x" "$(awk '/^## Lints and the toy repo/{p=1;next} /^## /{p=0} p' README.md | grep -cF 'chmod +x')" 1
     [ "$fail" = 0 ] ) || fail=1
+  # Hostile: do what the README convention says for a new script and one
+  # case (executable script, args, expected-stdout, expected-exit, data).
+  local C
+  C="$(repo_copy)"
+  mkdir -p "$C/skills/pipeline/scripts" "$C/tests/fixtures/hello/one"
+  printf '#!/usr/bin/env bash\nset -euo pipefail\nprintf "hello %%s\\n" "$(cat "$1")"\n' > "$C/skills/pipeline/scripts/hello.sh"
+  chmod +x "$C/skills/pipeline/scripts/hello.sh"
+  echo 'name.txt' > "$C/tests/fixtures/hello/one/args"
+  echo world > "$C/tests/fixtures/hello/one/name.txt"
+  printf 'hello world\n' > "$C/tests/fixtures/hello/one/expected-stdout"
+  echo 0 > "$C/tests/fixtures/hello/one/expected-exit"
+  check "README convention followed" "$(bash "$C/tests/scripts.sh"; echo "exit=$?"; bash "$C/tests/lint.sh"; echo "exit=$?")" \
+    "$(lines 'scripts ok' exit=0 'lint ok' exit=0)"
+  # Skipping the README's chmod +x step fails the run.
+  chmod -x "$C/skills/pipeline/scripts/hello.sh"
+  bash "$C/tests/scripts.sh" > "$TMP/c27" 2>&1 && bad "a script without chmod +x passed: $(cat "$TMP/c27")"
 }
 
 t_C28() {
@@ -605,6 +730,8 @@ t_C29() {
     | grep -cF 'Any other exit: stop the round and report stderr; never a pass, never INVALID.')" 1
   check "exit 0/1 sentence" "$(awk '/^### 5\. /{p=1} /^### 6\. /{p=0} p' "$M" | tr '\n' ' ' | tr -s ' ' \
     | grep -cF 'Exit 0: pass. Exit 1: lint failure.')" 1
+  check "step 6 reads the exit status" "$(awk '/^### 6\. /{p=1} /^### 7\. /{p=0} p' "$M" | tr '\n' ' ' | tr -s ' ' \
+    | grep -cF 'reading the exit status as in step 5')" 1
 }
 
 t_C30() {
@@ -640,7 +767,209 @@ t_C31() {
   check "top-level names" "$(tr '\0' '\n' < "$W/list" | cut -d/ -f2 | LC_ALL=C sort -u | tr '\n' ' ')" ".github .gitignore install.sh site skills "
 }
 
-all="C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 C20 C21 C22 C23 C24 C25 C26 C27 C28 C29 C30 C31"
+# usage_run <dir> <args...>: "exit=<n> out=<stdout bytes> err=<yes|no>".
+usage_run() {
+  local d="$1"
+  shift
+  ( cd "$d" && "$L" "$@" > "$TMP/uo" 2> "$TMP/ue"; echo $? > "$TMP/ux" )
+  echo "exit=$(cat "$TMP/ux") out=$(wc -c < "$TMP/uo" | tr -d ' ') err=$([ -s "$TMP/ue" ] && echo yes || echo no)"
+}
+
+t_C32() {
+  local w i
+  w="$(work good)"
+  local -a runs=(
+    "-- spec.md round.md"
+    "spec.md -- round.md"
+    "spec.md round.md --"
+    "--after-triage -- spec.md round.md"
+    "--min-attempts -- spec.md round.md"
+    # hostile inputs, and more
+    "--- spec.md round.md"
+    "--= spec.md round.md"
+    "-- -- spec.md round.md"
+    "--after-triage=1 spec.md round.md"
+    "--min-attempts=3 spec.md round.md"
+    "--min-attempts 3 -- spec.md round.md"
+    "spec.md round.md -- --after-triage"
+    "--after-triage spec.md round.md --"
+  )
+  for i in "${runs[@]}"; do
+    # shellcheck disable=SC2086
+    check "[$i]" "$(set -f; usage_run "$w" $i)" "exit=2 out=0 err=yes"
+  done
+  # A file named -- next to the inputs changes nothing.
+  cp "$w/spec.md" "$w/--"
+  check "existing file named --" "$(usage_run "$w" spec.md --)" "exit=2 out=0 err=yes"
+}
+
+# c33_path <dir> <missing program>: a PATH dir holding every program in
+# /usr/bin and /bin except the named one.
+c33_path() {
+  local B="$1" t="$2"
+  mkdir -p "$B"
+  ln -sf /usr/bin/* "$B/" 2>/dev/null
+  [ /bin -ef /usr/bin ] || ln -sf /bin/* "$B/" 2>/dev/null
+  rm -f "$B/$t"
+}
+
+# c33_judge <case> <PATH dir>: ok1 (exit 1, exactly expected-stdout), ok2
+# (exit 2, no stdout), same (the case's expected result) or BAD.
+c33_judge() {
+  local c="$1" B="$2" e
+  ( cd "$F/$c" && PATH="$B" "$L" $(cat args) > "$TMP/c33.out" 2>/dev/null; echo $? > "$TMP/c33.x" )
+  e="$(cat "$TMP/c33.x")"
+  if [ "$e" = 1 ] && cmp -s "$TMP/c33.out" "$F/$c/expected-stdout"; then echo ok1
+  elif [ "$e" = 2 ] && [ ! -s "$TMP/c33.out" ]; then echo ok2
+  elif [ "$e" = "$(cat "$F/$c/expected-exit")" ] && cmp -s "$TMP/c33.out" "$F/$c/expected-stdout"; then echo same
+  else echo "BAD exit=$e"; fi
+}
+
+t_C33() {
+  local t c B res="" n=0 bads
+  # (a) one program missing at a time, the spec's list.
+  for t in awk grep sed sort comm tr wc head mktemp; do
+    B="$(mktemp -d "$TMP/p.XXXXXX")"
+    c33_path "$B" "$t"
+    for c in r2 r3 r4 r5 r7; do
+      res="$res$t $c $(c33_judge "$c" "$B")
+"
+      n=$((n + 1))
+    done
+  done
+  check "(a) runs" "$n" 45
+  bads="$(printf '%s' "$res" | grep -vE ' ok[12]$')"
+  check "(a) bad results" "$bads" ""
+  # Hostile: other programs missing (the clean cases must still pass when the
+  # script does not need the program; a needed one must give exit 2).
+  for t in cut uniq cat rm head mktemp; do
+    B="$(mktemp -d "$TMP/p.XXXXXX")"
+    c33_path "$B" "$t"
+    for c in good good-after-triage r2 r3 r4 r5 r6 r7; do
+      case "$(c33_judge "$c" "$B")" in same|ok1|ok2) ;; *) bad "$t missing, $c: $(c33_judge "$c" "$B")" ;; esac
+    done
+  done
+  # Hostile (beyond the spec): a program that is present but fails (exit 1,
+  # exit 2 or killed) never gives a pass, a clean exit 0 or partial output.
+  local mode
+  for t in awk grep sed sort comm tr wc; do
+    for mode in exit1 exit2 kill; do
+      [ "$t/$mode" = grep/exit1 ] && continue # grep exit 1 means "no match"
+      B="$(mktemp -d "$TMP/p.XXXXXX")"
+      c33_path "$B" "$t"
+      case "$mode" in
+        exit1) printf '#!/bin/sh\nexit 1\n' ;;
+        exit2) printf '#!/bin/sh\nexit 2\n' ;;
+        kill)  printf '#!/bin/sh\nkill -9 $$\n' ;;
+      esac > "$B/$t"
+      chmod +x "$B/$t"
+      for c in good good-after-triage r2 r3 r4 r5 r6 r7; do
+        check "$t $mode, $c" "$(c33_judge "$c" "$B")" ok2
+      done
+    done
+  done
+  # Hostile: ulimit -f 0 changes nothing (the script writes no file).
+  for c in good r3 r5; do
+    check "ulimit -f 0, $c" "$(cd "$F/$c" && { ( ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" \
+      "$(cat "$F/$c/expected-stdout"; echo "exit=$(cat "$F/$c/expected-exit")")"
+  done
+  # (b) a personas: line too long for a program argument.
+  local w out e
+  w="$(work good)"
+  ( cd "$w" && awk 'BEGIN{while(length(L)<140000) L=L "aaaaaaaaaa"} /^personas:/{print "personas: fuzzer, attacker, stranger, " L; next} {print}' round.md > r.tmp && mv r.tmp round.md )
+  ( cd "$w" && "$L" spec.md round.md > "$TMP/c33b.out" 2> "$TMP/c33b.err"; echo $? > "$TMP/c33b.x" )
+  e="$(cat "$TMP/c33b.x")"
+  out="$(awk '{print $1, $2, $NF, length($3)}' "$TMP/c33b.out")"
+  case "$e" in
+    1) check "(b) exit 1 output" "$out" "$(lines 'R3 C1 0 140000' 'R3 C2 0 140000')" ;;
+    2) check "(b) exit 2 output" "$out" ""; [ -s "$TMP/c33b.err" ] || bad "(b) exit 2 without stderr" ;;
+    *) bad "(b) exit $e" ;;
+  esac
+  # Hostile: a 140,000-character line under Entry points, and one under
+  # Files opened: the old block's results.
+  w="$(work good)"
+  ( cd "$w" && m_c14_longentry )
+  check "long Entry points line" "$(lint_in "$w" spec.md round.md)" exit=0
+  w="$(work good)"
+  ( cd "$w" && m_c14_longpath )
+  out="$(lint_in "$w" spec.md round.md)"
+  check "long Files opened path" "$(printf '%s\n' "$out" | awk '{print $1, length($2)}')" "$(lines 'R5 140002' 'exit=1 0')"
+}
+
+t_C34() {
+  local T="$REPO/skills/adversarial-review/references/report-template.md"
+  check "report shape above ## Lint" "$(awk '/^## Lint/{exit} {print}' "$T" | sha256sum | cut -c1-16)" 248eefcefa6d583b
+  check "## Lint through rule 7 without rule 6" \
+    "$(awk '/^## Lint/{p=1;next} p{print} p && /^7\. /{exit}' "$T" | awk '/^6\. /{s=1} /^7\. /{s=0} !s' | sha256sum | cut -c1-16)" fb5eb7b38e5678a6
+  local LINT
+  LINT="$(awk '/^## Lint/{p=1;next} /^## /{p=0} p' "$T" | tr '\n' ' ' | tr -s ' ')"
+  check "rule 6 text" "$(printf '%s\n' "$LINT" | grep -cF '6. `verdict:` equals the verdict recomputed after triage: BLOCKED when there is at least one claim section and every claim section is UNVERIFIABLE; else CLEAN when no finding under `## Findings` has `triage: loop`, no claim is UNVERIFIABLE and `## Spec-level findings` holds no `### F-` block; else FINDINGS.')" 1
+  check "old rule 6 gone" "$(grep -cF 'only if fail = 0' "$T")" 0
+  check "new paragraph" "$(printf '%s\n' "$LINT" | grep -cF "A report that fails rule 2, 3, 4 or 5 goes back to the persona at fault once, with the failing rule numbers; if it still fails, the skill records INVALID. Rules 1, 6 and 7 check what the skill itself wrote: it rewrites the header verdict (rule 1) or writes the script's want value (rules 6 and 7), lints again, and records INVALID if a line is still printed. No persona is re-prompted for them.")" 1
+  check "old paragraph gone" "$(tr '\n' ' ' < "$T" | tr -s ' ' | grep -cE 'says CLEAN and fails any rule is INVALID|The skill re-prompts the persona once')" 0
+  check "executable-form paragraph kept" "$(printf '%s\n' "$LINT" | grep -cF 'The executable form of this list is `scripts/lint-report.sh`')" 1
+  # Hostile: rule 6's prose agrees with the script. A stray line under
+  # ## Spec-level findings that is not a ### F- block does not stop CLEAN.
+  check "stray spec-level line, CLEAN" "$(on good-after-triage m_c34_stray --after-triage spec.md round.md)" exit=0
+  check "stray spec-level line, FINDINGS" "$(on good-after-triage m_c34_stray_findings --after-triage spec.md round.md)" \
+    "$(lines 'R6 want CLEAN have FINDINGS' exit=1)"
+}
+m_c34_stray() { m_c11_a; sed -i 's/^## Spec-level findings$/## Spec-level findings\nnone this round, see F-1-1/' round.md; }
+m_c34_stray_findings() { m_c34_stray; sed -i 's/^verdict: CLEAN$/verdict: FINDINGS/' round.md; }
+
+# apply_want <dir> <args...>: do what SKILL.md steps 5 and 6 say with an R1,
+# R6 or R7 line (rewrite the verdict, write the want values, add the
+# Coverage heading when missing), then lint again; prints the rerun's result.
+apply_want() {
+  local d="$1" out v cov
+  shift
+  out="$(cd "$d" && "$L" "$@" 2>/dev/null)"
+  ( cd "$d"
+    if printf '%s\n' "$out" | grep -qx 'R1 verdict'; then
+      # step 4's provisional verdict: FINDINGS when any FAIL is present
+      sed -i '/^verdict:/d' round.md
+      sed -i '1a verdict: FINDINGS' round.md
+    fi
+    v="$(printf '%s\n' "$out" | sed -n 's/^R6 want \([A-Z]*\) have .*/\1/p')"
+    [ -z "$v" ] || sed -i "s/^verdict: .*/verdict: $v/" round.md
+    cov="$(printf '%s\n' "$out" | sed -n 's/^R7 want \[\(.*\)\] have \[.*\]$/\1/p')"
+    if [ -n "$cov" ]; then
+      if grep -q '^## Coverage$' round.md; then
+        awk -v c="$cov" '{print} /^## Coverage$/{print c; getline}' round.md > r.tmp && mv r.tmp round.md
+      else
+        printf '\n## Coverage\n%s\n' "$cov" >> round.md
+      fi
+    fi )
+  lint_in "$d" "$@"
+}
+
+t_C35() {
+  local S5 s
+  S5="$(awk '/^### 5\. /{p=1} /^### 6\. /{p=0} p' "$M" | tr '\n' ' ' | tr -s ' ')"
+  for s in 'An R1 or R7 line is a merge error of this skill, never of a persona' \
+    'For R1, rewrite the header verdict line as step 4 says' 'adding that heading when it is missing' \
+    'If an R1 or R7 line is still printed after that rerun, record INVALID as below' \
+    'On an R2–R5 failure, find the persona at fault'; do
+    check "[$s]" "$(printf '%s\n' "$S5" | grep -cF -- "$s")" 1
+  done
+  check "old R1–R5 phrase gone" "$(printf '%s\n' "$S5" | grep -cF 'On an R1–R5 failure')" 0
+  # Hostile: following step 5 on a report with no ## Coverage heading and on
+  # one with verdict: DONE ends in a pass after the one rerun.
+  local w
+  for m in m_c13_gone m_c4_done m_c13_999 m_c4_second; do
+    w="$(work good)"
+    ( cd "$w" && "$m" )
+    check "step 5 on $m" "$(apply_want "$w" --min-attempts 3 spec.md round.md)" exit=0
+  done
+  # Step 6: the want values of R6 and R7 after triage pass on the rerun.
+  for m in m_c10_clean m_c11_a m_c11_b m_c11_c m_c11_d m_c11_partunv m_c11_partunv3 m_c13_gone; do
+    w="$(work good-after-triage)"
+    ( cd "$w" && "$m" )
+    check "step 6 on $m" "$(apply_want "$w" --after-triage --min-attempts 3 spec.md round.md)" exit=0
+  done
+}
+
+all="C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 C20 C21 C22 C23 C24 C25 C26 C27 C28 C29 C30 C31 C32 C33 C34 C35"
 [ $# -gt 0 ] && all="$*"
 for cur in $all; do
   if ! declare -F "t_$cur" > /dev/null; then
