@@ -225,6 +225,11 @@ m_c11_b()        { m_c11_a; sed -i 's/^## Spec-level findings$/## Spec-level fin
 m_c11_c()        { sed -i -E 's/^### (C[0-9]+) — (PASS|FAIL)( → F-1-1)?$/### \1 — UNVERIFIABLE → F-1-1/; s/^claims: .*/claims: 3  pass: 0  fail: 0  unverifiable: 3  attempts: 12  deferred: 0/' round.md; }
 m_c11_c2()       { m_c11_c; sed -i 's/^verdict: FINDINGS$/verdict: BLOCKED/' round.md; }
 m_c11_d()        { sed -i 's/^- triage: loop$/- triage: deferred → X-9/; s/deferred: 0$/deferred: 1/' round.md; }
+# one of three claims UNVERIFIABLE, its only finding deferred, no spec-level
+# finding: the UNVERIFIABLE count alone must keep R6 off CLEAN (and off BLOCKED).
+m_c11_partunv()  { sed -i 's/^### C4 — FAIL → F-1-1$/### C4 — UNVERIFIABLE → F-1-1/; s/^- triage: loop$/- triage: deferred → X-9/; s/^verdict: FINDINGS$/verdict: CLEAN/; s/^claims: .*/claims: 3  pass: 2  fail: 0  unverifiable: 1  attempts: 12  deferred: 1/' round.md; }
+m_c11_partunv2() { m_c11_partunv; sed -i 's/^verdict: CLEAN$/verdict: FINDINGS/' round.md; }
+m_c11_partunv3() { m_c11_partunv; sed -i 's/^verdict: CLEAN$/verdict: BLOCKED/' round.md; }
 m_c11_noclaims() {
   awk '/^## Claims/{print; skip=1; next} /^## Spec-level findings/{skip=0} skip && /^## Findings/{print; next} !skip' round.md > r.tmp && mv r.tmp round.md
   sed -i 's/^verdict: FINDINGS$/verdict: CLEAN/' round.md
@@ -258,6 +263,11 @@ t_C11() {
   check "no claims: last line" "$(printf '%s\n' "$out" | tail -n 1)" exit=1
   check "deferred spec-level finding still counts" "$(on good-after-triage m_c11_specdef --after-triage spec.md round.md)" \
     "$(lines 'R6 want FINDINGS have CLEAN' exit=1)"
+  check "some UNVERIFIABLE, no loop, CLEAN" "$(on good-after-triage m_c11_partunv --after-triage spec.md round.md)" \
+    "$(lines 'R6 want FINDINGS have CLEAN' exit=1)"
+  check "some UNVERIFIABLE, no loop, FINDINGS" "$(on good-after-triage m_c11_partunv2 --after-triage spec.md round.md)" exit=0
+  check "some UNVERIFIABLE, no loop, BLOCKED" "$(on good-after-triage m_c11_partunv3 --after-triage spec.md round.md)" \
+    "$(lines 'R6 want FINDINGS have BLOCKED' exit=1)"
 }
 
 t_C12() {
