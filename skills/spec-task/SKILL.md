@@ -163,7 +163,7 @@ Run exactly these from `spec-format.md`:
 ```bash
 S="$RUN/spec.md"
 [ "$(grep -c '^### C[0-9]*:' "$S")" -ge 1 ] || echo "NO CLAIMS"
-awk '/^### C[0-9]*:|^## Changelog/{ if (c && !(v&&e&&t)) print "INCOMPLETE " c; c=$0; v=e=t=0 } /^- verify:/{v=1} /^- expect:/{e=1} /^- type:/{t=1} END{ if (c && c !~ /^## Changelog/ && !(v&&e&&t)) print "INCOMPLETE " c }' "$S"
+awk '/^### C[0-9]*:|^## Changelog/{ if (c && !(v&&e&&t)) print "INCOMPLETE " c; c=$(0); v=e=t=0 } /^- verify:/{v=1} /^- expect:/{e=1} /^- type:/{t=1} END{ if (c && c !~ /^## Changelog/ && !(v&&e&&t)) print "INCOMPLETE " c }' "$S"
 grep -o '^### C[0-9]*' "$S" | sort | uniq -d                       # duplicate ids
 grep -q '^## How to run' "$S" || echo "NO HOW TO RUN"
 grep '^- verify:' "$S" | grep -oE '[^ ]+\.(java|kt|ts|tsx|js|py|go|rs|rb|cs|swift|scala)\b' | sort -u > /tmp/verify-paths.txt

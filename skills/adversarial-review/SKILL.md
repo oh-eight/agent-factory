@@ -156,9 +156,9 @@ step 6 because it depends on triage.
 [ "$(grep -cE '^verdict: (CLEAN|FINDINGS|BLOCKED)$' "$R")" = 1 ] || echo "R1 verdict"
 
 # R2 every live spec claim has a verdict
-awk '/^### C[0-9]+:/{c=$2; sub(/:$/,"",c); ids[c]=1} /^- status: removed-/{rm[c]=1}
+awk '/^### C[0-9]+:/{c=$(2); sub(/:$/,"",c); ids[c]=1} /^- status: removed-/{rm[c]=1}
      END{for(i in ids) if(!rm[i]) print i}' "$S" | sort > "$T/claims"
-grep -oE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R" | awk '{print $2}' | sort > "$T/verdicts"
+grep -oE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R" | awk '{print $(2)}' | sort > "$T/verdicts"
 comm -23 "$T/claims" "$T/verdicts" | sed 's/^/R2 missing /'
 comm -13 "$T/claims" "$T/verdicts" | sed 's/^/R2 unknown /'
 
@@ -166,10 +166,10 @@ comm -13 "$T/claims" "$T/verdicts" | sed 's/^/R2 unknown /'
 PERSONAS=$(sed -n 's/^personas: *//p' "$R" | tr -d ',')
 awk -v min=3 -v personas="$PERSONAS" '
   BEGIN{n=split(personas,P," ")}
-  FNR==NR { if(/^### C[0-9]+:/){c=$2; sub(/:$/,"",c)} if(/^- type: ux/) ux[c]=1; next }
-  /^### C[0-9]+ — PASS/{flush(); claim=$2; inpass=1; next}
+  FNR==NR { if(/^### C[0-9]+:/){c=$(2); sub(/:$/,"",c)} if(/^- type: ux/) ux[c]=1; next }
+  /^### C[0-9]+ — PASS/{flush(); claim=$(2); inpass=1; next}
   /^### /{flush(); inpass=0}
-  inpass && /^- attempts \(/{cur=$0; sub(/.*\(/,"",cur); sub(/\).*/,"",cur); next}
+  inpass && /^- attempts \(/{cur=$(0); sub(/.*\(/,"",cur); sub(/\).*/,"",cur); next}
   inpass && /^  [0-9]+\. /{cnt[cur]++}
   END{flush()}
   function flush(){ if(claim=="") return; m=(claim in ux)?1:min
@@ -179,7 +179,7 @@ awk -v min=3 -v personas="$PERSONAS" '
 # R4 every FAIL/UNVERIFIABLE points at a finding that has repro: or reason:
 grep -E '^### C[0-9]+ — (FAIL|UNVERIFIABLE)' "$R" | grep -vE '→ F-[0-9]+-[0-9]+' | sed 's/^/R4 no finding: /'
 grep -oE '^### C[0-9]+ — (FAIL|UNVERIFIABLE) → F-[0-9]+-[0-9]+' "$R" | awk '{print $NF}' | sort -u > "$T/need"
-awk '/^### F-[0-9]+-[0-9]+ /{f=$2} /^- (repro|reason):/{if(f) ok[f]=1} END{for(k in ok) print k}' "$R" | sort -u > "$T/have"
+awk '/^### F-[0-9]+-[0-9]+ /{f=$(2)} /^- (repro|reason):/{if(f) ok[f]=1} END{for(k in ok) print k}' "$R" | sort -u > "$T/have"
 comm -23 "$T/need" "$T/have" | sed 's/^/R4 no repro: /'
 
 # R5 no repo source path in Files opened outside Entry points. Repo files are

@@ -210,7 +210,10 @@ Behaviour lives in `skills/<name>/references/*.md` and
 rarely change. The learner opens draft PRs here when a lesson repeats, each
 touching only `references/` and citing the lesson file. Human edits follow
 the same path: change the reference, run `tests/lint.sh`, open a PR that
-says which run or lesson motivated it. Keep `SKILL.md` under 500 lines,
+says which run or lesson motivated it. Never write `$0`, `$1`, … or
+`$ARGUMENTS` in a `SKILL.md`: the skill loader replaces them with the
+invocation's arguments, so write awk fields as `$(0)`, `$(2)` (the lint
+enforces this). Keep `SKILL.md` under 500 lines,
 keep the engine vendor-free (the lint enforces the word list), and put
 anything a role must know into the role's file rather than the skill that
 spawns it.

@@ -64,6 +64,13 @@ for s in install.sh tests/*.sh; do
   bash -n "$s" 2>/dev/null || bad "$s: does not parse"
 done
 
+# 7. SKILL.md text has no argument placeholders. The skill loader replaces
+#    $0, $1, ... with the invocation's arguments and $ARGUMENTS with all of
+#    them, so an awk field like $0 arrives as the ticket key. Reference and
+#    agent files are read from disk and are not affected.
+report_lines "argument placeholder in SKILL.md (write awk fields as \$(N))" \
+  "$(grep -nE '\$[0-9]|\$ARGUMENTS' skills/*/SKILL.md 2>/dev/null)"
+
 if [ "$fail" -eq 0 ]; then
   echo "lint ok"
   exit 0
