@@ -7,9 +7,8 @@
 # Default mode checks rules 1-5 and 7 (step 5); --after-triage checks all
 # of 1-7 (step 6). --min-attempts defaults to 3; type: ux claims need 1.
 # Prints one "R<n> ..." line per failure. Exit 0: clean. Exit 1: lint
-# failure. Exit 2: bad usage, unreadable input, or a read or write error
-# on its temp files (fails closed). Writes nothing but a temp directory
-# that it removes.
+# failure. Exit 2: bad usage, unreadable input, or a rule that could not run
+# (a missing or failing program); stdout is then empty. Writes no files.
 set -uo pipefail
 
 usage() {
@@ -58,31 +57,42 @@ for f in "$S" "$R"; do
   fi
 done
 
-T="$(mktemp -d)" || { echo "lint-report.sh: cannot create a temp directory" >&2; exit 2; }
-[ -n "$T" ] && [ -d "$T" ] || { echo "lint-report.sh: cannot create a temp directory" >&2; exit 2; }
-trap 'rm -rf "$T"' EXIT
+# Every program a rule runs must exist: a missing one would turn a rule's
+# input into nothing and could pass a bad report.
+for t in awk grep sed sort comm tr wc; do
+  command -v "$t" >/dev/null 2>&1 || { echo "lint-report.sh: missing program: $t" >&2; exit 2; }
+done
 
-# A failed temp-file write (disk full, file size limit) must not turn into
-# empty rule input and a silent pass. rules runs in a subshell, so this exits
-# that subshell with 2 and the caller below stops with 2.
-ioerr() { echo "lint-report.sh: I/O error on a temp file: $1" >&2; exit 2; }
+# A rule that cannot run (a program fails, an argument is too long for it)
+# stops the run with 2. rules runs in a subshell, so this exits that
+# subshell with 2 and the caller below stops with 2 and prints nothing.
+norun() { echo "lint-report.sh: rule $1 could not run" >&2; exit 2; }
+# grep and grep -c exit 1 when nothing matches; only 2 and above is an error.
+nomatch() { [ "$1" -le 1 ] || norun "$2"; }
+# The lists live in variables, not temp files, so an interrupted run leaves
+# nothing behind. lines prints a list back with one line per entry, and
+# nothing for an empty list.
+lines() { [ -z "$1" ] || printf '%s\n' "$1"; }
 
-# The rule bodies below are the inline step-5 block from SKILL.md as it was,
-# with min=3 replaced by the option. Keep regexes and output text unchanged:
-# the skill and the fixtures depend on them byte for byte.
+# The rule bodies below are the inline step-5 block from SKILL.md as it was
+# (tests/fixtures/lint-report/old-step5.sh), with min=3 replaced by the
+# option, temp files replaced by variables, and every exit status checked.
+# Keep regexes and output text unchanged: the skill and the fixtures depend
+# on them byte for byte.
 rules() {
 # R1 verdict line
-[ "$(grep -cE '^verdict: (CLEAN|FINDINGS|BLOCKED)$' "$R")" = 1 ] || echo "R1 verdict"
+n=$(grep -cE '^verdict: (CLEAN|FINDINGS|BLOCKED)$' "$R"); nomatch $? R1
+[ "$n" = 1 ] || echo "R1 verdict"
 
 # R2 every live spec claim has a verdict
-awk '/^### C[0-9]+:/{c=$2; sub(/:$/,"",c); ids[c]=1} /^- status: removed-/{rm[c]=1}
-     END{for(i in ids) if(!rm[i]) print i}' "$S" | sort > "$T/claims" || ioerr claims
-{ grep -oE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R" || [ $? = 1 ]; } | awk '{print $2}' | sort > "$T/verdicts" || ioerr verdicts
-comm -23 "$T/claims" "$T/verdicts" | sed 's/^/R2 missing /' || ioerr claims
-comm -13 "$T/claims" "$T/verdicts" | sed 's/^/R2 unknown /' || ioerr verdicts
+claims=$(awk '/^### C[0-9]+:/{c=$2; sub(/:$/,"",c); ids[c]=1} /^- status: removed-/{rm[c]=1}
+     END{for(i in ids) if(!rm[i]) print i}' "$S" | sort) || norun R2
+verdicts=$({ grep -oE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R" || [ $? = 1 ]; } | awk '{print $2}' | sort) || norun R2
+comm -23 <(lines "$claims") <(lines "$verdicts") | sed 's/^/R2 missing /' || norun R2
+comm -13 <(lines "$claims") <(lines "$verdicts") | sed 's/^/R2 unknown /' || norun R2
 
 # R3 every PASS has min attempts under each persona (1 for type: ux)
-PERSONAS=$(sed -n 's/^personas: *//p' "$R" | tr -d ',')
+PERSONAS=$(sed -n 's/^personas: *//p' "$R" | tr -d ',') || norun R3
 awk -v min="$min" -v personas="$PERSONAS" '
   BEGIN{n=split(personas,P," ")}
   FNR==NR { if(/^### C[0-9]+:/){c=$2; sub(/:$/,"",c)} if(/^- type: ux/) ux[c]=1; next }
@@ -93,31 +103,36 @@ awk -v min="$min" -v personas="$PERSONAS" '
   END{flush()}
   function flush(){ if(claim=="") return; m=(claim in ux)?1:min
     for(i=1;i<=n;i++) if(cnt[P[i]]+0<m) print "R3", claim, P[i], cnt[P[i]]+0
-    split("",cnt); claim="" }' "$S" "$R"
+    split("",cnt); claim="" }' "$S" "$R" || norun R3
 
 # R4 every FAIL/UNVERIFIABLE points at a finding that has repro: or reason:
-grep -E '^### C[0-9]+ — (FAIL|UNVERIFIABLE)' "$R" | grep -vE '→ F-[0-9]+-[0-9]+' | sed 's/^/R4 no finding: /'
-{ grep -oE '^### C[0-9]+ — (FAIL|UNVERIFIABLE) → F-[0-9]+-[0-9]+' "$R" || [ $? = 1 ]; } | awk '{print $NF}' | sort -u > "$T/need" || ioerr need
-awk '/^### F-[0-9]+-[0-9]+ /{f=$2} /^- (repro|reason):/{if(f) ok[f]=1} END{for(k in ok) print k}' "$R" | sort -u > "$T/have" || ioerr have
-comm -23 "$T/need" "$T/have" | sed 's/^/R4 no repro: /' || ioerr have
+{ grep -E '^### C[0-9]+ — (FAIL|UNVERIFIABLE)' "$R" || [ $? = 1 ]; } \
+  | { grep -vE '→ F-[0-9]+-[0-9]+' || [ $? = 1 ]; } | sed 's/^/R4 no finding: /' || norun R4
+need=$({ grep -oE '^### C[0-9]+ — (FAIL|UNVERIFIABLE) → F-[0-9]+-[0-9]+' "$R" || [ $? = 1 ]; } | awk '{print $NF}' | sort -u) || norun R4
+have=$(awk '/^### F-[0-9]+-[0-9]+ /{f=$2} /^- (repro|reason):/{if(f) ok[f]=1} END{for(k in ok) print k}' "$R" | sort -u) || norun R4
+comm -23 <(lines "$need") <(lines "$have") | sed 's/^/R4 no repro: /' || norun R4
 
 # R5 no repo source path in Files opened outside Entry points. Repo files are
 # listed relative to repo_root; scratch payloads and scripts are absolute
 # (or under $HOME) and are the verifier's own, so they are not checked.
-awk '/^## Entry points/{p=1;next} /^## /{p=0} p' "$S" > "$T/entry" || ioerr entry
+entry=$(awk '/^## Entry points/{p=1;next} /^## /{p=0} p' "$S") || norun R5
 awk '/^## Files opened/{p=1;next} /^## /{p=0} p' "$R" \
-  | grep -oE '[^ ]+\.(java|kt|ts|tsx|js|py|go|rs|rb|cs|swift|scala|c|cpp|h)$' \
-  | grep -vE '^(/|\$HOME|~)' \
-  | while read -r f; do grep -qF -- "$f" "$T/entry" || echo "R5 $f"; done
+  | { grep -oE '[^ ]+\.(java|kt|ts|tsx|js|py|go|rs|rb|cs|swift|scala|c|cpp|h)$' || [ $? = 1 ]; } \
+  | { grep -vE '^(/|\$HOME|~)' || [ $? = 1 ]; } \
+  | while read -r f; do
+      # The path goes in as a pattern file, so no length is too long for it.
+      grep -qF -f <(printf '%s\n' "$f") <(lines "$entry")
+      case $? in 0) ;; 1) echo "R5 $f" ;; *) exit 2 ;; esac
+    done || norun R5
 
 # R6 header verdict after triage (--after-triage only). BLOCKED when there is
 # at least one claim section and every one is UNVERIFIABLE; else CLEAN when no
 # loop finding, no UNVERIFIABLE claim and no spec-level finding; else FINDINGS.
 if [ "$after" = 1 ]; then
-  loop=$(awk '/^## Findings/{p=1} /^## Spec-level/{p=0} p && /^- triage: loop/' "$R" | wc -l | tr -d ' ')
-  unv=$(grep -cE '^### C[0-9]+ — UNVERIFIABLE' "$R")
-  spec=$(awk '/^## Spec-level findings/{p=1;next} /^## /{p=0} p && /^### F-/' "$R" | wc -l | tr -d ' ')
-  claims=$(grep -cE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R")
+  loop=$(awk '/^## Findings/{p=1} /^## Spec-level/{p=0} p && /^- triage: loop/' "$R" | wc -l | tr -d ' ') || norun R6
+  unv=$(grep -cE '^### C[0-9]+ — UNVERIFIABLE' "$R"); nomatch $? R6
+  spec=$(awk '/^## Spec-level findings/{p=1;next} /^## /{p=0} p && /^### F-/' "$R" | wc -l | tr -d ' ') || norun R6
+  claims=$(grep -cE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R"); nomatch $? R6
   if [ "$claims" -gt 0 ] && [ "$unv" = "$claims" ]; then
     vwant=BLOCKED
   elif [ "$((loop + unv + spec))" = 0 ]; then
@@ -125,22 +140,25 @@ if [ "$after" = 1 ]; then
   else
     vwant=FINDINGS
   fi
-  vhave=$(sed -n 's/^verdict: //p' "$R" | head -n 1)
+  vhave=$(awk '/^verdict: /{sub(/^verdict: /,""); print; exit}' "$R") || norun R6
   [ "$vwant" = "$vhave" ] || echo "R6 want $vwant have $vhave"
 fi
 
 # R7 coverage line matches the claim sections (re-run after step 6)
-pass=$(grep -cE '^### C[0-9]+ — PASS' "$R"); fail=$(grep -cE '^### C[0-9]+ — FAIL' "$R")
-unv=$(grep -cE '^### C[0-9]+ — UNVERIFIABLE' "$R")
-att=$(awk '/^## Claims/{p=1} /^## Findings/{p=0} p && /^  [0-9]+\. /' "$R" | wc -l | tr -d ' ')
-def=$(grep -c '^- triage: deferred' "$R")
+pass=$(grep -cE '^### C[0-9]+ — PASS' "$R"); nomatch $? R7
+fail=$(grep -cE '^### C[0-9]+ — FAIL' "$R"); nomatch $? R7
+unv=$(grep -cE '^### C[0-9]+ — UNVERIFIABLE' "$R"); nomatch $? R7
+att=$(awk '/^## Claims/{p=1} /^## Findings/{p=0} p && /^  [0-9]+\. /' "$R" | wc -l | tr -d ' ') || norun R7
+def=$(grep -c '^- triage: deferred' "$R"); nomatch $? R7
 want="claims: $((pass+fail+unv))  pass: $pass  fail: $fail  unverifiable: $unv  attempts: $att  deferred: $def"
-have=$(awk '/^## Coverage/{getline; print; exit}' "$R")
-[ "$(echo "$want" | tr -s ' ')" = "$(echo "$have" | tr -s ' ')" ] || echo "R7 want [$want] have [$have]"
+have=$(awk '/^## Coverage/{getline; print; exit}' "$R") || norun R7
+wsq=$(echo "$want" | tr -s ' ') || norun R7
+hsq=$(echo "$have" | tr -s ' ') || norun R7
+[ "$wsq" = "$hsq" ] || echo "R7 want [$want] have [$have]"
 }
 
-# Collect the lines through a pipe, not a temp file, and stop with 2 when
-# rules did not finish (ioerr, or a signal such as SIGXFSZ).
+# Collect the lines first and print them only when every rule ran, so a
+# rule that could not run gives exit 2 and nothing on stdout.
 out="$(rules)" || exit 2
 [ -n "$out" ] || exit 0
 printf '%s\n' "$out"

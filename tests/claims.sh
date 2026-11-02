@@ -421,15 +421,6 @@ t_C18() {
   check "pattern opened paths" "$(on good m_c18_regexpath spec.md round.md)" "$(lines 'R5 bin/too..c' 'R5 [b]in/tool.c' exit=1)"
 }
 
-# F-1-sec-1: each mutation makes exactly one temp file outgrow 1 KiB (an
-# 1100-digit id), so `ulimit -f 1` fails that write and no earlier one.
-big()            { printf '%01100d' 7; }
-m_c19_claims()   { printf '\n### C%s: long id\n- type: functional\n- status: open\n' "$(big)" >> spec.md; }
-m_c19_verdicts() { sed -i "s/^## Findings\$/### C$(big) — PASS\n\n## Findings/" round.md; }
-m_c19_need()     { sed -i "s/^### C4 — FAIL → F-1-1\$/### C4 — FAIL → F-1-$(big)/" round.md; }
-m_c19_have()     { sed -i "s/^## Spec-level findings\$/### F-9-$(big)  fingerprint: long\n- repro: x\n\n## Spec-level findings/" round.md; }
-m_c19_entry()    { sed -i "s|^## Entry points\$|## Entry points\n- \`lib/$(big).c\`: long|" spec.md; }
-
 t_C19() {
   local w B TT c m x
   w="$(work good)"
@@ -443,24 +434,29 @@ t_C19() {
   check "temp dir count" "$(ls -A "$TT" | wc -l | tr -d ' ')" 0
   check "work dir" "$(ls -A "$w" | tr '\n' ' ')" "round.md spec.md "
   check "inputs" "$(cd "$w" && sha256sum -c --quiet "$B" && echo unchanged)" unchanged
-  for c in r2 r5 good; do
+  for c in r2 r5; do
     ( cd "$F/$c" && TMPDIR=/nonexistent/x "$L" $(cat args) > /dev/null 2>&1; echo $? ) > "$TMP/x"
     case "$(cat "$TMP/x")" in 1|2) ;; *) bad "$c with TMPDIR=/nonexistent/x: exit $(cat "$TMP/x")" ;; esac
   done
-  # F-1-sec-1: a temp-file write that fails (file size limit; with SIGXFSZ
-  # ignored the write gets EFBIG, as on a full disk) exits 2, prints nothing.
+  # The script writes no temp files (round 2, F-1-8), so an unusable TMPDIR
+  # or a file size limit changes nothing: every case gives its expected
+  # stdout and exit. (Round 1's F-1-sec-1 checks of per-temp-file write
+  # failures no longer apply: there is no temp file left to fail.)
+  local want
   for c in r3 good; do
-    check "$c, temp writes killed" "$(cd "$F/$c" && { ( ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" exit=2
-    check "$c, temp writes fail" "$(cd "$F/$c" && { ( trap '' XFSZ; ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" exit=2
+    want="$(cat "$F/$c/expected-stdout"; echo "exit=$(cat "$F/$c/expected-exit")")"
+    check "$c, TMPDIR=/nonexistent/x" "$(cd "$F/$c" && { TMPDIR=/nonexistent/x "$L" $(cat args) 2>/dev/null; echo "exit=$?"; })" "$want"
+    check "$c, file size limit 0" "$(cd "$F/$c" && { ( ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" "$want"
+    check "$c, file size limit 0, XFSZ ignored" "$(cd "$F/$c" && { ( trap '' XFSZ; ulimit -f 0; "$L" $(cat args) ) 2>/dev/null; echo "exit=$?"; })" "$want"
   done
-  # The same for each temp file on its own, cut off part way (1 KiB limit).
-  for m in claims verdicts need have entry; do
-    w="$(work good)"
-    ( cd "$w" && "m_c19_$m" ) || bad "mutation m_c19_$m failed"
-    x="$(cd "$w" && { "$L" spec.md round.md > /dev/null 2>&1; echo "$?"; })"
-    case "$x" in 0|1) ;; *) bad "$m, no limit: exit $x, want 0 or 1" ;; esac
-    check "$m, temp write killed past 1 KiB" "$(cd "$w" && { ( ulimit -f 1; "$L" spec.md round.md ) 2>/dev/null; echo "exit=$?"; })" exit=2
-    check "$m, temp write fails past 1 KiB" "$(cd "$w" && { ( trap '' XFSZ; ulimit -f 1; "$L" spec.md round.md ) 2>/dev/null; echo "exit=$?"; })" exit=2
+  # Step 5: interrupted by TERM, HUP or INT, no temp file is left behind.
+  local s TS i
+  for s in TERM HUP INT; do
+    TS="$(mktemp -d "$TMP/ts.XXXXXX")"
+    for i in $(seq 30); do
+      ( cd "$w" && TMPDIR=$TS timeout -s "$s" "0.0$((i % 5 + 1))" "$L" spec.md round.md > /dev/null 2>&1 )
+    done
+    check "$s interrupts leave nothing" "$(ls -A "$TS" | wc -l | tr -d ' ')" 0
   done
   # The fixture dirs stay as checked in.
   check "fixtures untouched" "$(git -C "$REPO" status --porcelain -- tests/fixtures)" ""
