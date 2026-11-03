@@ -8,8 +8,8 @@
 # Prints one "<field>: <problem>" line per problem, in the order of the
 # schema example. Exit 0: clean (no output). Exit 1: problems. Exit 2: bad
 # usage, a file it cannot read, or a program that failed; stdout is then
-# empty. Extra keys are allowed; cross-field rules are not checked. Writes
-# no files.
+# empty, and stderr names the file by its base name only. Extra keys are
+# allowed; cross-field rules are not checked. Writes no files.
 set -uo pipefail
 
 usage() {
@@ -26,7 +26,8 @@ case "$1" in
   -*|'') usage ;;
 esac
 f="$1"
-{ [ -f "$f" ] && [ -r "$f" ]; } || die "not a readable file: $f"
+name="${f##*/}"
+{ [ -f "$f" ] && [ -r "$f" ]; } || die "not a readable file: $name"
 command -v jq >/dev/null 2>&1 || die "missing program: jq"
 
 # The last line is an end marker, so output from a jq that did not run the
@@ -83,7 +84,7 @@ out="$(jq -R -s -r --arg end "$end" '
          else empty end
      end),
     $end
-' "$f")" || die "cannot check $f (jq failed)"
+' 2>/dev/null < "$f")" || die "cannot check $name (jq failed)"
 
 case "$out" in
   "$end") exit 0 ;;

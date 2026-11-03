@@ -88,9 +88,10 @@ line. Act on its exit code; never judge the conditions yourself.
   `chat.dm` with the question and the resume command, release the lock,
   stop.
 - 2 (an input it could not evaluate; stdout empty) → write
-  `escalation.md` with `why: valve could not evaluate` and the script's
-  stderr, `stage: escalated`, `chat.dm` with the resume command, release
-  the lock, stop. No `round += 1`.
+  `escalation.md` with `why: valve could not evaluate`, append the
+  script's stderr to `run.log` (never to `escalation.md` or the tracker),
+  `stage: escalated`, `chat.dm` with the resume command, release the lock,
+  stop. No `round += 1`.
 
 Resume path: `<front door> KEY <answer>` then `<front door> KEY go`; the
 answer lands in `instructions[]` and round N+1 of `prepare` reads it. Only
@@ -158,11 +159,12 @@ the lock. Under a dispatcher, also update `_factory/shift.json`.
 After every stage change and after each invoked skill returns, run
 `"$SKILL_DIR/scripts/check-status.sh" "<run dir>/status.json"` (the same
 run directory as the Valve, never a path built from KEY). Exit 1 or 2 →
-print its lines (or its stderr) and the file path, write `escalation.md`
-(`why: status.json invalid` plus those lines), `chat.dm`; when the file
-parses as a JSON object, set only `stage: escalated` and release `lock`
-(no second check on that write), otherwise leave the file untouched;
-never advance to the next stage.
+print its lines (or its stderr), write `escalation.md` (`why: status.json
+invalid` plus, on exit 1, its field lines; on exit 2 its stderr goes to
+`run.log`, never to `escalation.md` or the tracker), `chat.dm`; when the
+file parses as a JSON object, set only `stage: escalated` and release
+`lock` (no second check on that write), otherwise leave the file
+untouched; never advance to the next stage.
 
 After every stage change: one tracker comment per `references/hygiene.md`,
 one `run.log` line, and a `governor.md` checkpoint after every round.

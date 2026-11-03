@@ -12,9 +12,10 @@
 # counts as twice that value.
 # Prints exactly one line: "ok" (exit 0) or "tripped: <reason>" (exit 3).
 # Exit 2: bad usage, an input it cannot read or evaluate, or a program that
-# failed; stdout is then empty. Exit 1 is not used. Missing optional files
-# (verification/, build/, nurse/, costs.json, run.log, config.json) trip
-# nothing. Writes no files.
+# failed; stdout is then empty, and stderr names files inside the run
+# directory relative to it (config.json as ../config.json). Exit 1 is not
+# used. Missing optional files (verification/, build/, nurse/, costs.json,
+# run.log, config.json) trip nothing. Writes no files.
 set -uo pipefail
 
 usage() {
@@ -24,6 +25,32 @@ usage() {
 die() {
   echo "valve.sh: $*" >&2
   exit 2
+}
+# rel PATH: PATH relative to the run directory when it lies inside it or is
+# the config.json beside it; otherwise as given.
+parent=""
+rel() {
+  case "$1" in
+    "$dir"/*) printf '%s' "${1#"$dir"/}"; return ;;
+  esac
+  if [ -n "$parent" ]; then
+    case "$1" in
+      "$parent"/*) printf '../%s' "${1#"$parent"/}"; return ;;
+    esac
+  fi
+  printf '%s' "$1"
+}
+# relerr: copy stdin to stderr with each JSON input path made relative.
+relerr() {
+  local l k r
+  while IFS= read -r l || [ -n "$l" ]; do
+    for k in "$dir/status.json" "$cf" "$ld" "$cs"; do
+      [ "$k" = /dev/null ] && continue
+      r="$(rel "$k")"
+      l="${l//"$k"/$r}"
+    done
+    printf '%s\n' "$l" >&2
+  done
 }
 
 [ $# = 1 ] || usage
@@ -44,13 +71,13 @@ export LC_ALL=C
 present() {
   if [ ! -e "$1" ] && [ ! -L "$1" ]; then return 1; fi
   if [ -f "$1" ] && [ -r "$1" ]; then return 0; fi
-  die "not a readable file: $1"
+  die "not a readable file: $(rel "$1")"
 }
 # presentdir DIR: the same for a directory that has to be listed.
 presentdir() {
   if [ ! -e "$1" ] && [ ! -L "$1" ]; then return 1; fi
   if [ -d "$1" ] && [ -r "$1" ] && [ -x "$1" ]; then return 0; fi
-  die "not a readable directory: $1"
+  die "not a readable directory: $(rel "$1")"
 }
 isnum() {
   case "$1" in
@@ -59,7 +86,7 @@ isnum() {
   return 0
 }
 
-present "$dir/status.json" || die "no status.json in $dir"
+present "$dir/status.json" || die "no status.json in the run directory"
 
 # The parent of the path as given (a symlinked run dir gets the link's
 # parent, not the target's): cd resolves ".." logically.
@@ -81,7 +108,7 @@ if present "$dir/costs.json"; then hascs=1; cs="$dir/costs.json"; fi
 # entries, wall minutes (floored) and the ledger fingerprint that repeats
 # (JSON-encoded, "-" for none). Any input it cannot evaluate prints an
 # "error" line instead.
-facts="$(jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
+facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
   --slurpfile ld "$ld" --slurpfile cs "$cs" \
   --arg hascf "$hascf" --arg hasld "$hasld" --arg hascs "$hascs" '
   def isint: type == "number" and . == floor;
@@ -137,7 +164,7 @@ facts="$(jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
       + [$lfp]
     | join("\t")
   ) catch ("error\t" + tostring)
-')" || die "cannot evaluate the JSON inputs (jq failed)"
+' 2>&1 1>&3 3>&- | relerr; } 3>&1)" || die "cannot evaluate the JSON inputs (jq failed)"
 
 case "$facts" in
   "error	"*) die "${facts#error	}" ;;
@@ -234,7 +261,7 @@ if presentdir "$dir/build" && presentdir "$rd"; then
         if (t ~ /^\(?none\)?\.?$/) next
         found = 1; exit
       }
-      END { if (found) print "yes" }' "$f")" || die "cannot read $f"
+      END { if (found) print "yes" }' "$f")" || die "cannot read $(rel "$f")"
     [ "$d" = yes ] && dec=1
   done
   for f in "$rd"/fix-pass-*.md; do
