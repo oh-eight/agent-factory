@@ -52,6 +52,48 @@ patch:
 -}
 +{"key": "T-1", "mode": "code", "stage": "prepare", "round": 1}
 
+=== ok-tab-indent-crlf
+args: status.json
+exit: 0
+stdout:
+patch:
+--- status.json
++++ status.json
+@@ -1,27 +1,6 @@
+-{
+-  "key": "ABC-123",
+-  "profile": "vendor-a",
+-  "mode": "code",
+-  "epic": null,
+-  "stage": "prepare",
+-  "round": 1,
+-  "harness": "claude-code",
+-  "repo": {"path": "$HOME/work/repo", "remote": "owner/repo", "base": "main", "base_sha": null},
+-  "branch": {"name": "prefix-abc-123-slug", "pushed_sha": null},
+-  "ticket": {"url": "https://…", "summary": "…", "size": "M"},
+-  "children": [],
+-  "pr": {"number": null, "url": null, "draft": true, "merged_sha": null},
+-  "nurse": {"done": false, "passes": 0, "last_head": null, "retries": {}, "blocked": null},
+-  "review": {"last_seen": null, "open_items": 0},
+-  "sanity": {"verdict": null, "head": null, "body_hash": null, "checked_at": null},
+-  "sentinel": {"live_at": null, "window_end": null, "passes": 0},
+-  "gates": ["merge"],
+-  "pending_gate": null,
+-  "overrides": {},
+-  "budget": {"max_wall_minutes": 360},
+-  "instructions": [],
+-  "gaps": [],
+-  "lock": {"owner": null, "since": null},
+-  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
+-  "history": [{"ts": "…", "event": "created from /intake"}]
+-}
++{
++	"key": "T-1",
++	"mode": "code",
++	"stage": "prepare",
++	"round": 1
++}
+
 === ok-extra-keys-and-nulls
 args: status.json
 exit: 0
