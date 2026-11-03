@@ -734,3 +734,150 @@ stdout:
 args: .
 exit: 2
 stdout:
+
+=== root-infinity
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -4,7 +4,7 @@
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+-  "round": 1,
++  "round": Infinity,
+   "harness": "claude-code",
+   "repo": {"path": "$HOME/work/repo", "remote": "owner/repo", "base": "main", "base_sha": null},
+   "branch": {"name": "prefix-abc-123-slug", "pushed_sha": null},
+
+=== root-leading-zero
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -4,7 +4,7 @@
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+-  "round": 1,
++  "round": 01,
+   "harness": "claude-code",
+   "repo": {"path": "$HOME/work/repo", "remote": "owner/repo", "base": "main", "base_sha": null},
+   "branch": {"name": "prefix-abc-123-slug", "pushed_sha": null},
+
+=== root-nan
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -22,6 +22,6 @@
+   "instructions": [],
+   "gaps": [],
+   "lock": {"owner": null, "since": null},
+-  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
++  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": NaN},
+   "history": [{"ts": "…", "event": "created from /intake"}]
+ }
+
+=== root-plus-sign
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -4,7 +4,7 @@
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+-  "round": 1,
++  "round": +1,
+   "harness": "claude-code",
+   "repo": {"path": "$HOME/work/repo", "remote": "owner/repo", "base": "main", "base_sha": null},
+   "branch": {"name": "prefix-abc-123-slug", "pushed_sha": null},
+
+=== root-bare-fraction
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -22,6 +22,6 @@
+   "instructions": [],
+   "gaps": [],
+   "lock": {"owner": null, "since": null},
+-  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
++  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": .5},
+   "history": [{"ts": "…", "event": "created from /intake"}]
+ }
+
+=== root-trailing-dot
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -22,6 +22,6 @@
+   "instructions": [],
+   "gaps": [],
+   "lock": {"owner": null, "since": null},
+-  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
++  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 1.},
+   "history": [{"ts": "…", "event": "created from /intake"}]
+ }
+
+=== root-invalid-utf8
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-�",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== ok-literals-inside-strings
+args: status.json
+exit: 0
+stdout:
+patch:
+--- status.json
++++ status.json
+@@ -8,7 +8,7 @@
+   "harness": "claude-code",
+   "repo": {"path": "$HOME/work/repo", "remote": "owner/repo", "base": "main", "base_sha": null},
+   "branch": {"name": "prefix-abc-123-slug", "pushed_sha": null},
+-  "ticket": {"url": "https://…", "summary": "…", "size": "M"},
++  "ticket": {"url": "https://…", "summary": "NaN Infinity 01 .5 +1 \"x\" [1,2]", "size": "M"},
+   "children": [],
+   "pr": {"number": null, "url": null, "draft": true, "merged_sha": null},
+   "nurse": {"done": false, "passes": 0, "last_head": null, "retries": {}, "blocked": null},
+@@ -22,6 +22,6 @@
+   "instructions": [],
+   "gaps": [],
+   "lock": {"owner": null, "since": null},
+-  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
++  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 12.5e-1},
+   "history": [{"ts": "…", "event": "created from /intake"}]
+ }

@@ -30,12 +30,19 @@ esac
 f="$1"
 name="${f##*/}"
 { [ -f "$f" ] && [ -r "$f" ]; } || die "not a readable file: $name"
-command -v jq >/dev/null 2>&1 || die "missing program: jq"
+for t in jq iconv wc; do
+  command -v "$t" >/dev/null 2>&1 || die "missing program: $t"
+done
+
+# jq decodes invalid UTF-8 as U+FFFD, so the bytes are checked first
+# (through a pipe: macOS iconv fails when its output is /dev/null).
+utf8=1
+iconv -f UTF-8 -t UTF-8 < "$f" 2>/dev/null | wc -c > /dev/null || utf8=0
 
 # The last line is an end marker, so output from a jq that did not run the
 # program is never taken for a clean file.
 end="check-status.sh:end"
-out="$(jq -R -s -r --arg end "$end" '
+out="$(jq -R -s -r --arg end "$end" --arg utf8 "$utf8" '
   def hex4: [(. / 4096 | floor) % 16, (. / 256 | floor) % 16, (. / 16 | floor) % 16, . % 16]
     | map("0123456789abcdef"[.:. + 1]) | add;
   def asc: tojson | explode
@@ -82,7 +89,13 @@ out="$(jq -R -s -r --arg end "$end" '
     (if has("wall_minutes") then .wall_minutes
        | want("costs.wall_minutes"; "number >= 0"; type == "number" and . >= 0; num_or_type)
      else empty end);
-  (try [fromjson] catch null) as $w
+  # jq also parses what RFC 8259 rejects (NaN, Infinity, 01, .5, 1., +1):
+  # outside strings, every token has to be a JSON literal or number.
+  def strict: gsub("\"([^\"\\\\]|\\\\.)*\""; "\"\"")
+    | all(splits("[ \t\n\r{}\\[\\]:,]+"); . == "" or . == "\"\"" or . == "true"
+        or . == "false" or . == "null"
+        or test("^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][-+]?[0-9]+)?$"));
+  (if $utf8 == "1" and strict then (try [fromjson] catch null) else null end) as $w
   | (if $w == null or ($w | length) != 1 then "(root): not valid JSON"
      elif ($w[0] | type) != "object" then "(root): want object, got \($w[0] | type)"
      else
