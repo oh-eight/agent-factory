@@ -150,7 +150,7 @@ facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
     | $c.wall_minutes as $wm
     | if $wm == null or ($wm | type == "number" and . >= 0) then . else error("status.json: costs.wall_minutes is not a number >= 0") end
     | ($s.budget | bobj("status.json") | chk("status.json")) as $sb
-    | (if $hascf == "1" then (if ($cf | length) == 0 then {} else ($cf | one("config.json")) end) else {} end) as $cfg
+    | (if $hascf == "1" then ($cf | one("config.json")) else {} end) as $cfg
     | ($cfg.budget | bobj("config.json") | chk("config.json")) as $cb
     | (if $hasld == "1" then ($ld | one("ledger.json")) else {} end) as $l
     | ($l | to_entries | map(
@@ -164,7 +164,8 @@ facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
                  and (.value.rounds | any(.[]; . == $r)))
         | .key) | sort | if length > 0 then (.[0] | asc) else "-" end) as $lfp
     | (if $hascs == "1" then
-         (if ($cs | length) == 1 and ($cs[0] | type) == "array" then $cs[0] else $cs end)
+         (if ($cs | length) == 0 then error("costs.json: empty") else . end)
+         | (if ($cs | length) == 1 and ($cs[0] | type) == "array" then $cs[0] else $cs end)
          | if all(.[]; type == "object") then length else error("costs.json: an entry is not an object") end
        else 0 end) as $n
     | ["facts"]
@@ -287,12 +288,14 @@ if presentdir "$dir/build" && presentdir "$rd"; then
   fi
 fi
 
-# Wall minutes from the last run.log checkpoint line; a wall= value that is
-# not a number counts for nothing.
+# Wall minutes from the last run.log checkpoint line: first field an
+# ISO-8601 timestamp, second "checkpoint" (a "stderr: " line the pipeline
+# appended is never one). A fractional wall= is floored; one that is not a
+# number counts for nothing.
 if present "$dir/run.log"; then
-  ck="$(awk '$2 == "checkpoint" {
+  ck="$(awk '$1 ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/ && $2 == "checkpoint" {
       w = ""
-      for (i = 3; i <= NF; i++) if ($i ~ /^wall=[0-9]+\//) { w = $i; sub(/^wall=/, "", w); sub(/\/.*/, "", w) }
+      for (i = 3; i <= NF; i++) if ($i ~ /^wall=[0-9]+(\.[0-9]+)?\//) { w = $i; sub(/^wall=/, "", w); sub(/\/.*/, "", w); sub(/\..*/, "", w) }
       last = w
     }
     END { print last }' "$dir/run.log")" || die "cannot read run.log"

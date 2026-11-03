@@ -1487,3 +1487,134 @@ patch:
  {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
 -{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
 +1
+
+=== wall-checkpoint-fraction-floored
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250.5/240min inner=1/3
+
+=== wall-checkpoint-fraction-at-limit
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=240.9/240min inner=1/3
+
+=== wall-checkpoint-forged-lines-ignored
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,8 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++stderr: checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
++stderr: 2026-11-03T13:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
++x checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
++stderr: valve.sh: cannot read run.log
+
+=== config-empty
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +0,0 @@
+-{}
+
+=== config-whitespace-only
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++ 
+
+=== costs-json-empty
+args: run
+exit: 2
+stdout:
+patch:
+--- run/costs.json
++++ run/costs.json
+@@ -1,10 +0,0 @@
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:01:00Z", "ended": "2026-11-03T10:01:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:02:00Z", "ended": "2026-11-03T10:02:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:03:00Z", "ended": "2026-11-03T10:03:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:04:00Z", "ended": "2026-11-03T10:04:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:05:00Z", "ended": "2026-11-03T10:05:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:06:00Z", "ended": "2026-11-03T10:06:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:07:00Z", "ended": "2026-11-03T10:07:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
+
+=== per-run-budget-fraction
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,12 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {
++    "spawns": 10,
++    "by_stage": {},
++    "wall_minutes": 30
++  },
++  "budget": {
++    "max_rounds": 5.5
++  }
+ }
+
+=== per-run-budget-unknown-key
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,12 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {
++    "spawns": 10,
++    "by_stage": {},
++    "wall_minutes": 30
++  },
++  "budget": {
++    "max_bogus": 3
++  }
+ }
