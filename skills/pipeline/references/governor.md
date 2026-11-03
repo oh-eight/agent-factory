@@ -36,13 +36,13 @@ too. N is `status.json.round`. A missing optional file (`verification/`,
 one that is present but unreadable or malformed is exit 2. Fingerprints
 are printed JSON-encoded, with every code point outside printable ASCII
 as `\uXXXX`. On exit 2, stderr names files inside the run directory
-relative to it; the pipeline puts it in `run.log`, never in
-`escalation.md` or a tracker comment.
+relative to it; the pipeline appends it to `run.log` with every line
+prefixed `stderr: `, never to `escalation.md` or a tracker comment.
 
 | # | Trips when | Reason line |
 |---|---|---|
 | 1 | `round >= max_rounds` | `tripped: max_rounds round=N limit=M` |
-| 2 | the same fingerprint in rounds N-1 and N after a fix attempt: an entry of `verification/ledger.json` with `status: open` whose `rounds` holds N-1 and N (the first key in byte order), else a `### F-` line of `nurse/ci-findings.md` in a `# CI findings round R` section with R = N-1 or N whose `repeat-of:` is set and not `none` | `tripped: repeat fingerprint="<fp>" source=ledger rounds=N-1,N`, else `tripped: repeat fingerprint="<fp>" source=ci-findings round=R` |
+| 2 | the same fingerprint in rounds N-1 and N after a fix attempt: an entry of `verification/ledger.json` with `status: open` whose `rounds` holds N-1 and N (the first key in byte order), else a `### F-` line of `nurse/ci-findings.md` in a `# CI findings round R` section with R = N-1 or N whose `repeat-of:` is set and not `none` (a `### F-` line before any `# CI findings round` heading belongs to no round and is ignored) | `tripped: repeat fingerprint="<fp>" source=ledger rounds=N-1,N`, else `tripped: repeat fingerprint="<fp>" source=ci-findings round=R` |
 | 3 | the first `verdict:` line of `verification/round-<N-1>.md` and of `round-<N>.md` is `BLOCKED` | `tripped: blocked twice rounds=N-1,N` |
 | 4 | the same with `INVALID` | `tripped: invalid twice rounds=N-1,N` |
 | 5 | `build/round-N/builder.md` or a `build/round-N/builder-fix-*.md` has a line under `## Decisions needed` that is not blank or `none` | `tripped: decision needed round=N` |
@@ -63,8 +63,10 @@ comparisons:
   number of `costs.json` entries (a JSON array, or one object per line);
   trips when used > limit.
 - `max_wall_minutes`: the larger of `status.json.costs.wall_minutes`
-  (floored) and the `wall=` of the last `run.log` checkpoint line; trips
-  when used > limit. It is not derived from `costs.json` timestamps, which
+  and the `wall=` of the last `run.log` checkpoint line, both floored
+  (250.5 counts as 250); trips when used > limit. A checkpoint line is one
+  whose first field is an ISO-8601 timestamp and whose second is
+  `checkpoint`, so a `stderr: ` line in `run.log` is never one. It is not derived from `costs.json` timestamps, which
   include time spent escalated or at a gate.
 - `max_inner_passes`: the number of `build/round-N/fix-pass-*.md`; trips
   when used > limit, or used = limit and `build/round-N/summary.md` says

@@ -89,9 +89,9 @@ line. Act on its exit code; never judge the conditions yourself.
   stop.
 - 2 (an input it could not evaluate; stdout empty) → write
   `escalation.md` with `why: valve could not evaluate`, append the
-  script's stderr to `run.log` (never to `escalation.md` or the tracker),
-  `stage: escalated`, `chat.dm` with the resume command, release the lock,
-  stop. No `round += 1`.
+  script's stderr to `run.log` with every line prefixed `stderr: ` (never
+  to `escalation.md` or the tracker), `stage: escalated`, `chat.dm` with
+  the resume command, release the lock, stop. No `round += 1`.
 
 Resume path: `<front door> KEY <answer>` then `<front door> KEY go`; the
 answer lands in `instructions[]` and round N+1 of `prepare` reads it. Only
@@ -161,7 +161,8 @@ After every stage change and after each invoked skill returns, run
 run directory as the Valve, never a path built from KEY). Exit 1 or 2 →
 print its lines (or its stderr), write `escalation.md` (`why: status.json
 invalid` plus, on exit 1, its field lines; on exit 2 its stderr goes to
-`run.log`, never to `escalation.md` or the tracker), `chat.dm`; when the
+`run.log` with every line prefixed `stderr: `, never to `escalation.md` or
+the tracker), `chat.dm`; when the
 file parses as a JSON object, set only `stage: escalated` and release
 `lock` (no second check on that write), otherwise leave the file
 untouched; never advance to the next stage.
