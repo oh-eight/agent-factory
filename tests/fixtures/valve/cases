@@ -435,6 +435,28 @@ patch:
 +### F-2-ci-1  repeat-of: F-1-ci-1  personas: build-nurse
  - claim: C1
 
+=== ci-findings-repeat-before-any-section
+args: bare
+exit: 0
+stdout:
+ok
+patch:
+--- bare/status.json
++++ bare/status.json
+@@ -2,5 +2,5 @@
+   "key": "T-2",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2
++  "round": 1
+ }
+--- /dev/null
++++ bare/nurse/ci-findings.md
+@@ -0,0 +1,3 @@
++### F-1-ci-1  fingerprint: ci-lint-fails  repeat-of: F-0-ci-1  personas: build-nurse
++# CI findings round 1 — T-2
++verdict: FINDINGS
+
 === ledger-before-ci-findings
 args: run
 exit: 3
@@ -632,6 +654,24 @@ patch:
  ## Spec problems
  - none
 
+=== decision-section-ends-at-level-1-heading
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/build/round-2/builder.md
++++ run/build/round-2/builder.md
+@@ -2,6 +2,8 @@
+ ## Claims
+ - C1 done
+ ## Decisions needed
++# Notes
++- C5: exit 1 or exit 2 on empty input
+ 
+ ## Spec problems
+ - none
+
 === spawns-over
 args: run
 exit: 3
@@ -786,6 +826,21 @@ patch:
 +2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
  2026-11-03T10:40:00Z verify round 1 FINDINGS
 +2026-11-03T14:00:00Z checkpoint round=2 spawns=14/60 wall=100/240min inner=1/3
+
+=== wall-last-checkpoint-without-wall
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+-2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
++2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T14:00:00Z checkpoint round=2 spawns=14/60 inner=1/3
 
 === wall-checkpoint-not-a-number
 args: run
@@ -1225,6 +1280,16 @@ patch:
    "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
  }
 
+=== bad-ledger-directory
+args: bare
+exit: 2
+stdout:
+patch:
+--- /dev/null
++++ bare/verification/ledger.json/entry
+@@ -0,0 +1 @@
++{}
+
 === bad-config-not-json
 args: run
 exit: 2
@@ -1300,3 +1365,16 @@ patch:
 -{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
 -{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
 +nope
+
+=== bad-costs-json-entry-not-object
+args: run
+exit: 2
+stdout:
+patch:
+--- run/costs.json
++++ run/costs.json
+@@ -8,3 +8,3 @@
+ {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+ {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
++1

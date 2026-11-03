@@ -484,6 +484,23 @@ patch:
    "history": [{"ts": "…", "event": "created from /intake"}]
  }
 
+=== costs-wall-minutes-negative
+args: status.json
+exit: 1
+stdout:
+costs.wall_minutes: want number >= 0, got -5
+patch:
+--- status.json
++++ status.json
+@@ -22,6 +22,6 @@
+   "instructions": [],
+   "gaps": [],
+   "lock": {"owner": null, "since": null},
+-  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
++  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": -5},
+   "history": [{"ts": "…", "event": "created from /intake"}]
+ }
+
 === root-not-json
 args: status.json
 exit: 1
