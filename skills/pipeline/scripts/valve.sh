@@ -7,7 +7,9 @@
 #
 # <run-dir> is the directory that holds the run's status.json. Budgets come
 # from status.json.budget, then from budget in the config.json in the run
-# directory's parent (FACTORY_HOME is not read), then the governor defaults.
+# directory's parent (FACTORY_HOME is not read), then the governor defaults;
+# a status.json.budget value above twice the config.json or default value
+# counts as twice that value.
 # Prints exactly one line: "ok" (exit 0) or "tripped: <reason>" (exit 3).
 # Exit 2: bad usage, an input it cannot read or evaluate, or a program that
 # failed; stdout is then empty. Exit 1 is not used. Missing optional files
@@ -92,6 +94,11 @@ facts="$(jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
     | reduce ("max_rounds", "max_inner_passes", "max_agent_spawns", "max_wall_minutes") as $k
         ($b; if .[$k] != null and ((.[$k] | posint) | not)
              then error(name + ": budget." + $k + " is not an integer >= 1") else . end);
+  # A status.json value wins up to twice the config.json or default value.
+  def lim($sb; $cb; $k; $d): ($cb[$k] // $d) as $base
+    | if $sb[$k] == null then $base
+      elif $sb[$k] > 2 * $base then 2 * $base
+      else $sb[$k] end;
   try (
     ($st | one("status.json")) as $s
     | $s.round as $r
@@ -122,10 +129,10 @@ facts="$(jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
        else 0 end) as $n
     | ["facts"]
       + ([$r, $r - 1,
-          ($sb.max_rounds // $cb.max_rounds // 5),
-          ($sb.max_inner_passes // $cb.max_inner_passes // 3),
-          ($sb.max_agent_spawns // $cb.max_agent_spawns // 60),
-          ($sb.max_wall_minutes // $cb.max_wall_minutes // 240),
+          lim($sb; $cb; "max_rounds"; 5),
+          lim($sb; $cb; "max_inner_passes"; 3),
+          lim($sb; $cb; "max_agent_spawns"; 60),
+          lim($sb; $cb; "max_wall_minutes"; 240),
           ($sp // 0), $n, ($wm // 0)] | map(floor | tostring))
       + [$lfp]
     | join("\t")

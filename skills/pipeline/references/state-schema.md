@@ -113,9 +113,14 @@ line per problem and exit 1, and never repairs the file):
 - `budget{}` is the per-run budget override: keys as in
   `config.json.budget` (`max_rounds`, `max_inner_passes`,
   `max_agent_spawns`, `max_wall_minutes`), each a positive integer. The
-  pipeline writes a key when it applies an escalation answer that raises a
-  budget for this run; unlike `overrides{}` it may change during the run.
-  The valve reads it before `config.json` (`governor.md` "Valve").
+  pipeline writes a key only when it applies an `answer:` instruction that
+  a human typed as `<front door> KEY <text>` and that raises a budget for
+  this run, never from a brief appended by dedupe or chat-intake, a
+  `sanity:` line or a stage agent; unlike `overrides{}` it may change
+  during the run. A value is at most twice the `config.json` value (the
+  governor default when config has none); the pipeline writes a larger ask
+  at that cap. The valve reads it before `config.json` and clamps a larger
+  value to the cap (`governor.md` "Valve").
 - `instructions[]` are strings appended by `<front door> KEY <text>`. Every
   stage reads them at start, applies what it can, and appends
   `applied: <text>` to `history[]`. They are never deleted.

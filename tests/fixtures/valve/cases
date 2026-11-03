@@ -242,6 +242,65 @@ patch:
    "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
  }
 
+=== status-budget-within-cap
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,8 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 9,
+   "harness": "claude-code",
++  "budget": {"max_rounds": 10},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-above-cap-clamped
+args: run
+exit: 3
+stdout:
+tripped: max_rounds round=10 limit=10
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,8 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 10,
+   "harness": "claude-code",
++  "budget": {"max_rounds": 500},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-above-cap-of-config
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=10 limit=8
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_agent_spawns": 4}}
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
++  "budget": {"max_agent_spawns": 100000},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
 === ledger-repeat
 args: run
 exit: 3

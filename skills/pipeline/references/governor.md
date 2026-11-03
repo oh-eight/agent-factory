@@ -46,11 +46,15 @@ are printed JSON-encoded.
 | 6 | a budget is exceeded, checked as `max_agent_spawns`, then `max_wall_minutes`, then `max_inner_passes` | `tripped: budget <key> used=U limit=L` |
 
 Budget limits, per key, first that is set: `status.json.budget.<key>` (a
-per-run override; the pipeline writes it when it applies an escalation
-answer that raises a budget for this run), then `budget.<key>` in the
-`config.json` beside the run directories (the run directory's parent; the
-script does not read `FACTORY_HOME`), then the default in the table
-above. Used amounts and comparisons:
+per-run override; the pipeline writes it only from an `answer:`
+instruction a human typed as `<front door> KEY <text>`, never from a
+dedupe or chat-intake brief, a `sanity:` line or a stage agent), then
+`budget.<key>` in the `config.json` beside the run directories (the run
+directory's parent; the script does not read `FACTORY_HOME`), then the
+default in the table above. A `status.json.budget.<key>` above twice the
+`config.json` value (or the default when config has none) counts as twice
+that value; going further needs a `config.json` edit. Used amounts and
+comparisons:
 
 - `max_agent_spawns`: the larger of `status.json.costs.spawns` and the
   number of `costs.json` entries (a JSON array, or one object per line);
