@@ -301,6 +301,23 @@ patch:
    "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
  }
 
+=== status-budget-huge-wall-clamped
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=481 limit=480
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "budget": {"max_wall_minutes": 1e18},
++  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 481}
+ }
+
 === ledger-repeat
 args: run
 exit: 3
