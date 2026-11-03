@@ -65,7 +65,9 @@ comparisons:
 - `max_wall_minutes`: the larger of `status.json.costs.wall_minutes`
   and the `wall=` of the last `run.log` checkpoint line, both floored
   (250.5 counts as 250); trips when used > limit. A checkpoint line is one
-  whose first field is an ISO-8601 timestamp and whose second is
+  whose first field is exactly a `YYYY-MM-DDTHH:MM:SSZ` stamp (month
+  01–12, day 01–31, hour 00–23, minute and second 00–59; no calendar
+  check, no fraction, offset or basic format) and whose second is
   `checkpoint`, so a `stderr: ` line in `run.log` is never one. It is not derived from `costs.json` timestamps, which
   include time spent escalated or at a gate.
 - `max_inner_passes`: the number of `build/round-N/fix-pass-*.md`; trips

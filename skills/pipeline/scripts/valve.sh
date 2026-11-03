@@ -288,12 +288,13 @@ if presentdir "$dir/build" && presentdir "$rd"; then
   fi
 fi
 
-# Wall minutes from the last run.log checkpoint line: first field an
-# ISO-8601 timestamp, second "checkpoint" (a "stderr: " line the pipeline
-# appended is never one). A fractional wall= is floored; one that is not a
-# number counts for nothing.
+# Wall minutes from the last run.log checkpoint line: first field exactly
+# YYYY-MM-DDTHH:MM:SSZ with each part in range (no calendar check), second
+# "checkpoint" (a "stderr: " line the pipeline appended is never one). A
+# fractional wall= is floored; one that is not a number counts for nothing.
 if present "$dir/run.log"; then
-  ck="$(awk '$1 ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/ && $2 == "checkpoint" {
+  ck="$(LC_ALL=C awk '$2 == "checkpoint" &&
+    $1 ~ /^[0-9][0-9][0-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$/ {
       w = ""
       for (i = 3; i <= NF; i++) if ($i ~ /^wall=[0-9]+(\.[0-9]+)?\//) { w = $i; sub(/^wall=/, "", w); sub(/\/.*/, "", w); sub(/\..*/, "", w) }
       last = w

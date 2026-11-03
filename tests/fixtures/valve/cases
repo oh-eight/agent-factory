@@ -1638,3 +1638,121 @@ patch:
 -{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
 -{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
 + 
+
+=== wall-checkpoint-stamp-junk
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++9999-99-99Tjunk checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-zero
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++0000-00-00T00:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-month-13
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-13-03T10:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-hour-24
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T24:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-fraction
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T10:00:00.5Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-offset
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T10:00:00+00:00 checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-basic-format
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,3 @@
+ 2026-11-03T10:00:00Z prepare resume
+-2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
++20261103T103000Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
+
+=== wall-checkpoint-stamp-no-calendar-check
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,3 @@
+ 2026-11-03T10:00:00Z prepare resume
+-2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
++2026-02-31T23:59:59Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
