@@ -87,7 +87,8 @@ line. Act on its exit code; never judge the conditions yourself.
   the one question that unblocks), `stage: escalated`, hygiene comment,
   `chat.dm` with the question and the resume command, release the lock,
   stop.
-- 2 (an input it could not evaluate; stdout empty) → write
+- 2 (an input it could not evaluate; stdout empty), or any other exit
+  (1, 126, 127, 128+n or anything else outside 0 and 3) → write
   `escalation.md` with `why: valve could not evaluate`, append the
   script's stderr to `run.log` with every line prefixed `stderr: ` (never
   to `escalation.md` or the tracker), `stage: escalated`, `chat.dm` with
@@ -158,9 +159,10 @@ the lock. Under a dispatcher, also update `_factory/shift.json`.
 
 After every stage change and after each invoked skill returns, run
 `"$SKILL_DIR/scripts/check-status.sh" "<run dir>/status.json"` (the same
-run directory as the Valve, never a path built from KEY). Exit 1 or 2 →
-print its lines (or its stderr), write `escalation.md` (`why: status.json
-invalid` plus, on exit 1, its field lines; on exit 2 its stderr goes to
+run directory as the Valve, never a path built from KEY). Any exit other
+than 0 (1, 2, 126, 127, 128+n or anything else) → print its lines (or its
+stderr), write `escalation.md` (`why: status.json invalid` plus, on exit
+1, its field lines; on any other non-zero exit its stderr goes to
 `run.log` with every line prefixed `stderr: `, never to `escalation.md` or
 the tracker), `chat.dm`; when the
 file parses as a JSON object, set only `stage: escalated` and release
