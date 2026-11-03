@@ -254,6 +254,23 @@ patch:
    "stage": "prepare",
    "round": 1,
 
+=== mode-missing
+args: status.json
+exit: 1
+stdout:
+mode: missing
+patch:
+--- status.json
++++ status.json
+@@ -1,7 +1,6 @@
+ {
+   "key": "ABC-123",
+   "profile": "vendor-a",
+-  "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+   "round": 1,
+
 === round-string
 args: status.json
 exit: 1
@@ -449,6 +466,23 @@ patch:
 -  "history": [{"ts": "…", "event": "created from /intake"}]
 -}
 +{"key": "K", "mode": "code", "stage": "prepare", "round": 1, "costs": 5}
+
+=== costs-spawns-null
+args: status.json
+exit: 1
+stdout:
+costs.spawns: want integer >= 0, got null
+patch:
+--- status.json
++++ status.json
+@@ -22,6 +22,6 @@
+   "instructions": [],
+   "gaps": [],
+   "lock": {"owner": null, "since": null},
+-  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
++  "costs": {"spawns": null, "by_stage": {}, "wall_minutes": 0},
+   "history": [{"ts": "…", "event": "created from /intake"}]
+ }
 
 === root-not-json
 args: status.json

@@ -277,6 +277,23 @@ patch:
 +  "aa-a": {"claim": "C1", "rounds": [1, 2], "status": "open", "ticket": null}
  }
 
+=== ledger-rounds-out-of-order
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="c3-new" source=ledger rounds=1,2
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1,6 @@
+ {
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
++  "c3-new": {"claim": "C3", "rounds": [2, 1], "status": "open", "ticket": null},
+   "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+ }
+
 === ledger-hostile-fingerprint
 args: run
 exit: 3
@@ -1081,6 +1098,23 @@ patch:
    "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
  }
 
+=== bad-round-fraction
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 2.5,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
 === bad-round-missing
 args: run
 exit: 2
@@ -1172,6 +1206,22 @@ patch:
    "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
 -  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
 +  "c3-new": {"claim": "C3", "rounds": "2", "status": "open", "ticket": null},
+   "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+ }
+
+=== bad-ledger-entry-without-status
+args: run
+exit: 2
+stdout:
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1,6 @@
+ {
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
++  "c3-new": {"claim": "C3", "rounds": [2], "ticket": null},
    "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
  }
 
