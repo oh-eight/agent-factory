@@ -1618,3 +1618,23 @@ patch:
 +    "max_bogus": 3
 +  }
  }
+
+=== costs-json-whitespace-only
+args: run
+exit: 2
+stdout:
+patch:
+--- run/costs.json
++++ run/costs.json
+@@ -1,10 +1 @@
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:01:00Z", "ended": "2026-11-03T10:01:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:02:00Z", "ended": "2026-11-03T10:02:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:03:00Z", "ended": "2026-11-03T10:03:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:04:00Z", "ended": "2026-11-03T10:04:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:05:00Z", "ended": "2026-11-03T10:05:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:06:00Z", "ended": "2026-11-03T10:06:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:07:00Z", "ended": "2026-11-03T10:07:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
++ 

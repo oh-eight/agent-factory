@@ -881,3 +881,21 @@ patch:
 +  "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 12.5e-1},
    "history": [{"ts": "…", "event": "created from /intake"}]
  }
+
+=== root-nan-after-escaped-quote
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -21,7 +21,7 @@
+   "budget": {"max_wall_minutes": 360},
+   "instructions": [],
+   "gaps": [],
+-  "lock": {"owner": null, "since": null},
++  "lock": {"owner": null, "since": null}, "k\"": NaN,
+   "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
+   "history": [{"ts": "…", "event": "created from /intake"}]
+ }
