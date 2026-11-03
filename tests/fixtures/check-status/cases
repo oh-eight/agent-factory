@@ -1106,7 +1106,75 @@ patch:
  {
    "key": "ABC-123",
 -  "profile": "vendor-a",
-+  "profile": "vendor-Ã©ï¿¿ô¿¿",
++  "profile": "vendor-Ã©ï¿¿ô¿¿ß¿à €íŸ¿ğ€€",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-lead-c1
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-Á¿",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-overlong-3-byte-edge
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-àŸ¿",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-overlong-4-byte
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-ğ¿¿",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-bad-continuation
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-ÃÀ",
    "mode": "code",
    "epic": null,
    "stage": "prepare",
