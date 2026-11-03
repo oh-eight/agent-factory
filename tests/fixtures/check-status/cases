@@ -236,6 +236,24 @@ patch:
    "harness": "claude-code",
    "repo": {"path": "$HOME/work/repo", "remote": "owner/repo", "base": "main", "base_sha": null},
 
+=== stage-non-ascii
+args: status.json
+exit: 1
+stdout:
+stage: unknown value "a\u009b2J\u202eb\u2029c\ud83d\ude00"
+patch:
+--- status.json
++++ status.json
+@@ -3,7 +3,7 @@
+   "profile": "vendor-a",
+   "mode": "code",
+   "epic": null,
+-  "stage": "prepare",
++  "stage": "a\u009b2J\u202eb\u2029c\ud83d\ude00",
+   "round": 1,
+   "harness": "claude-code",
+   "repo": {"path": "$HOME/work/repo", "remote": "owner/repo", "base": "main", "base_sha": null},
+
 === mode-unknown
 args: status.json
 exit: 1

@@ -34,7 +34,8 @@ could not evaluate an input (stdout empty); the pipeline escalates then
 too. N is `status.json.round`. A missing optional file (`verification/`,
 `build/`, `nurse/`, `costs.json`, `run.log`, `config.json`) trips nothing;
 one that is present but unreadable or malformed is exit 2. Fingerprints
-are printed JSON-encoded. On exit 2, stderr names files inside the run directory
+are printed JSON-encoded, with every code point outside printable ASCII
+as `\uXXXX`. On exit 2, stderr names files inside the run directory
 relative to it; the pipeline puts it in `run.log`, never in
 `escalation.md` or a tracker comment.
 

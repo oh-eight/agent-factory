@@ -6,10 +6,12 @@
 #   check-status.sh <status.json>
 #
 # Prints one "<field>: <problem>" line per problem, in the order of the
-# schema example. Exit 0: clean (no output). Exit 1: problems. Exit 2: bad
-# usage, a file it cannot read, or a program that failed; stdout is then
-# empty, and stderr names the file by its base name only. Extra keys are
-# allowed; cross-field rules are not checked. Writes no files.
+# schema example; a value is printed JSON-encoded with every code point
+# outside printable ASCII as \uXXXX. Exit 0: clean (no output). Exit 1:
+# problems. Exit 2: bad usage, a file it cannot read, or a program that
+# failed; stdout is then empty, and stderr names the file by its base name
+# only. Extra keys are allowed; cross-field rules are not checked. Writes no
+# files.
 set -uo pipefail
 
 usage() {
@@ -34,6 +36,15 @@ command -v jq >/dev/null 2>&1 || die "missing program: jq"
 # program is never taken for a clean file.
 end="check-status.sh:end"
 out="$(jq -R -s -r --arg end "$end" '
+  def hex4: [(. / 4096 | floor) % 16, (. / 256 | floor) % 16, (. / 16 | floor) % 16, . % 16]
+    | map("0123456789abcdef"[.:. + 1]) | add;
+  def asc: tojson | explode
+    | map(if . >= 32 and . < 127 then [.] | implode
+          elif . < 65536 then "\\u" + hex4
+          else (. - 65536) as $c
+            | "\\u" + ((55296 + ($c / 1024 | floor)) | hex4)
+              + "\\u" + ((56320 + ($c % 1024)) | hex4) end)
+    | add;
   def num_or_type: if type == "number" then tostring else type end;
   def want(f; w; ok; got): if ok then empty else "\(f): want \(w), got \(got)" end;
   def str(f): want(f; "string"; type == "string"; type);
@@ -43,7 +54,7 @@ out="$(jq -R -s -r --arg end "$end" '
   def enum(f; vals): . as $v
     | if type != "string" then str(f)
       elif any(vals[]; . == $v) then empty
-      else "\(f): unknown value \(tojson)" end;
+      else "\(f): unknown value \(asc)" end;
   def runstages: ["intake", "prepare", "spec", "verify", "pr", "nurse", "gated", "merge",
     "sentinel", "incident", "learn", "done", "escalated", "stopped"];
   def epicstages: ["intake", "gated", "planned", "dispatching", "done", "stopped"];

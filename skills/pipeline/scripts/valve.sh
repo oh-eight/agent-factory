@@ -103,14 +103,27 @@ if presentdir "$dir/verification" && present "$dir/verification/ledger.json"; th
 fi
 if present "$dir/costs.json"; then hascs=1; cs="$dir/costs.json"; fi
 
+# asc: a value JSON-encoded with every code point outside printable ASCII
+# written as \uXXXX (a surrogate pair above U+FFFF), so a name prints as one
+# line that carries no terminal control or bidi override.
+ascdef='def hex4: [(. / 4096 | floor) % 16, (. / 256 | floor) % 16, (. / 16 | floor) % 16, . % 16]
+    | map("0123456789abcdef"[.:. + 1]) | add;
+  def asc: tojson | explode
+    | map(if . >= 32 and . < 127 then [.] | implode
+          elif . < 65536 then "\\u" + hex4
+          else (. - 65536) as $c
+            | "\\u" + ((55296 + ($c / 1024 | floor)) | hex4)
+              + "\\u" + ((56320 + ($c % 1024)) | hex4) end)
+    | add;'
+
 # One jq pass validates every JSON input and prints one tab-separated
 # "facts" line: round, round-1, the four limits, spawns, costs.json
 # entries, wall minutes (floored) and the ledger fingerprint that repeats
-# (JSON-encoded, "-" for none). Any input it cannot evaluate prints an
+# (JSON-encoded by asc, "-" for none). Any input it cannot evaluate prints an
 # "error" line instead.
 facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
   --slurpfile ld "$ld" --slurpfile cs "$cs" \
-  --arg hascf "$hascf" --arg hasld "$hasld" --arg hascs "$hascs" '
+  --arg hascf "$hascf" --arg hasld "$hasld" --arg hascs "$hascs" "$ascdef"'
   def isint: type == "number" and . == floor;
   def posint: isint and . >= 1;
   def one(name): if length == 1 and (.[0] | type) == "object" then .[0]
@@ -149,7 +162,7 @@ facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
         | select(.value.status == "open"
                  and (.value.rounds | any(.[]; . == $r - 1))
                  and (.value.rounds | any(.[]; . == $r)))
-        | .key) | sort | if length > 0 then (.[0] | tojson) else "-" end) as $lfp
+        | .key) | sort | if length > 0 then (.[0] | asc) else "-" end) as $lfp
     | (if $hascs == "1" then
          (if ($cs | length) == 1 and ($cs[0] | type) == "array" then $cs[0] else $cs end)
          | if all(.[]; type == "object") then length else error("costs.json: an entry is not an object") end
@@ -218,7 +231,7 @@ if presentdir "$dir/nurse" && present "$dir/nurse/ci-findings.md"; then
     fp="${hit%	*}"
     cr="${hit##*	}"
     isnum "$cr" || die "cannot evaluate nurse/ci-findings.md"
-    cfp="$(jq -n -r --arg f "$fp" '$f | tojson')" || die "cannot encode a fingerprint (jq failed)"
+    cfp="$(jq -n -r --arg f "$fp" "$ascdef"' $f | asc')" || die "cannot encode a fingerprint (jq failed)"
     case "$cfp" in
       \"*\") ;;
       *) die "unexpected jq output" ;;

@@ -370,6 +370,23 @@ patch:
 -}
 +{"fp\n$(touch pwned)`touch pwned2`\u001b[31m": {"claim": "C1", "rounds": [1, 2], "status": "open", "ticket": null}}
 
+=== ledger-non-ascii-fingerprint
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="a\u009b31m\u202eb\u2028c\u00e9\ud83d\ude00" source=ledger rounds=1,2
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1 @@
+-{
+-  "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+-  "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+-}
++{"a\u009b31m\u202eb\u2028c\u00e9\ud83d\ude00": {"claim": "C1", "rounds": [1, 2], "status": "open", "ticket": null}}
+
 === ledger-empty
 args: run
 exit: 0
@@ -477,6 +494,22 @@ patch:
  ## Findings
 -### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
 +### F-2-ci-1  fingerprint: $(touch${IFS}pwned3)  repeat-of: F-1-ci-1  personas: build-nurse
+ - claim: C1
+
+=== ci-findings-non-ascii-fingerprint
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="ci-\u00e9-\ud83d\ude00" source=ci-findings round=2
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: ci-é-😀  repeat-of: F-1-ci-1  personas: build-nurse
  - claim: C1
 
 === ci-findings-repeat-without-fingerprint
