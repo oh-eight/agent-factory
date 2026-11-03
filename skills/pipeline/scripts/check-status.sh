@@ -30,7 +30,7 @@ esac
 f="$1"
 name="${f##*/}"
 { [ -f "$f" ] && [ -r "$f" ]; } || die "not a readable file: $name"
-for t in jq iconv wc; do
+for t in jq iconv wc awk tr; do
   command -v "$t" >/dev/null 2>&1 || die "missing program: $t"
 done
 
@@ -39,10 +39,42 @@ done
 utf8=1
 iconv -f UTF-8 -t UTF-8 < "$f" 2>/dev/null | wc -c > /dev/null || utf8=0
 
+# jq also parses what RFC 8259 rejects (NaN, Infinity, 01, .5, 1., +1):
+# outside strings, every token has to be a JSON literal or number. One pass,
+# with no regex over long text (awk's is slow there): tr turns NUL into \001
+# (just as bad outside a string; awk drops NUL) and every separator into a
+# newline; awk then reads one record per '"'. In a string, a record that ends
+# in an odd run of backslashes escapes the quote; outside, the text splits
+# into tokens, and a string counts as "" in the token around it.
+strict="$(LC_ALL=C tr '\000\011\015\040\054\072\133\135\173\175' '\001\n\n\n\n\n\n\n\n\n' < "$f" \
+  | LC_ALL=C awk -v RS='"' -v FS='\\' '
+  function ok(t) {
+    return t == "" || t == "\"\"" || t == "true" || t == "false" || t == "null" ||
+      t ~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?$/
+  }
+  instr {
+    k = 0
+    for (i = NF; i > 1 && $i == ""; i--) k++
+    if (k % 2 == 0) { instr = 0; cur = cur "\"\"" }
+    next
+  }
+  {
+    n = split($0, a, "\n")
+    if (n > 0) {
+      a[1] = cur a[1]
+      for (i = 1; i < n; i++) if (!ok(a[i])) bad = 1
+      cur = a[n]
+    }
+    instr = 1
+  }
+  END { if (!ok(cur)) bad = 1; print bad ? 0 : 1 }
+')" || die "cannot check $name (awk failed)"
+case "$strict" in 0|1) ;; *) die "cannot check $name (awk failed)" ;; esac
+
 # The last line is an end marker, so output from a jq that did not run the
 # program is never taken for a clean file.
 end="check-status.sh:end"
-out="$(jq -R -s -r --arg end "$end" --arg utf8 "$utf8" '
+out="$(jq -R -s -r --arg end "$end" --arg utf8 "$utf8" --arg strict "$strict" '
   def hex4: [(. / 4096 | floor) % 16, (. / 256 | floor) % 16, (. / 16 | floor) % 16, . % 16]
     | map("0123456789abcdef"[.:. + 1]) | add;
   def asc: tojson | explode
@@ -89,13 +121,7 @@ out="$(jq -R -s -r --arg end "$end" --arg utf8 "$utf8" '
     (if has("wall_minutes") then .wall_minutes
        | want("costs.wall_minutes"; "number >= 0"; type == "number" and . >= 0; num_or_type)
      else empty end);
-  # jq also parses what RFC 8259 rejects (NaN, Infinity, 01, .5, 1., +1):
-  # outside strings, every token has to be a JSON literal or number.
-  def strict: gsub("\"([^\"\\\\]|\\\\.)*\""; "\"\"")
-    | all(splits("[ \t\n\r{}\\[\\]:,]+"); . == "" or . == "\"\"" or . == "true"
-        or . == "false" or . == "null"
-        or test("^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][-+]?[0-9]+)?$"));
-  (if $utf8 == "1" and strict then (try [fromjson] catch null) else null end) as $w
+  (if $utf8 == "1" and $strict == "1" then (try [fromjson] catch null) else null end) as $w
   | (if $w == null or ($w | length) != 1 then "(root): not valid JSON"
      elif ($w[0] | type) != "object" then "(root): want object, got \($w[0] | type)"
      else
