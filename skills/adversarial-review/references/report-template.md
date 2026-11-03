@@ -86,9 +86,20 @@ fingerprints for `ledger.json` and the valve.
    (`.java .kt .ts .tsx .js .py .go .rs .rb .cs .swift .scala .c .cpp .h`)
    that is not listed under `## Entry points` in the spec. Absolute paths
    (the verifier's own scratch payloads and scripts) are not checked.
-6. `verdict: CLEAN` only if fail = 0 **after triage**, unverifiable = 0,
-   and `## Spec-level findings` is empty.
+6. `verdict:` equals the verdict recomputed after triage: BLOCKED when
+   there is at least one claim section and every claim section is
+   UNVERIFIABLE; else CLEAN when no finding under `## Findings` has
+   `triage: loop`, no claim is UNVERIFIABLE and `## Spec-level findings`
+   holds no `### F-` block; else FINDINGS.
 7. `## Coverage` counts match the claim sections.
 
-A report that says CLEAN and fails any rule is INVALID. The skill re-prompts
-the persona once with the failing rule numbers, then records INVALID.
+A report that fails rule 2, 3, 4 or 5 goes back to the persona at fault
+once, with the failing rule numbers; if it still fails, the skill records
+INVALID. Rules 1, 6 and 7 check what the skill itself wrote: it rewrites the
+header verdict (rule 1) or writes the script's want value (rules 6 and 7),
+lints again, and records INVALID if a line is still printed. No persona is
+re-prompted for them.
+
+The executable form of this list is `scripts/lint-report.sh` in this
+skill: its default mode checks rules 1–5 and 7 (step 5), and
+`--after-triage` checks all seven (step 6). The two must agree.

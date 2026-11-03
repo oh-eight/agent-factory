@@ -28,15 +28,16 @@ Copy this and track it:
 - [ ] 2. Spawn one verifier per persona (one message, parallel)
 - [ ] 3. Check the tree again; dirty → INVALID
 - [ ] 4. Merge persona reports into round-N.md
-- [ ] 5. Lint rules 1-5 and 7; re-prompt once; still failing → INVALID
-- [ ] 6. Triage; recompute verdict; rule 6 and 7
+- [ ] 5. Lint (script, rules 1-5 and 7); re-prompt once; still failing → INVALID
+- [ ] 6. Triage; lint --after-triage; write the want values
 - [ ] 7. Update ledger.json
 - [ ] 8. Hygiene comment, stage, return
 ```
 
 Variables used below: `FACTORY_HOME="${FACTORY_HOME:-$HOME/.factory}"`,
 `D="$FACTORY_HOME/$KEY"`, `S="$D/spec.md"`, `V="$D/verification"`,
-`N` = `status.json.round`, `R="$V/round-$N.md"`, `T="$(mktemp -d)"`.
+`N` = `status.json.round`, `R="$V/round-$N.md"`, `SKILL_DIR` = the
+directory holding this SKILL.md.
 
 ### 1. Load and preflight
 
@@ -148,60 +149,27 @@ UNVERIFIABLE or spec-level finding exists, else CLEAN.
 
 ### 5. Lint (structural rules)
 
-Run every command; any output is a failure for that rule. Rule 6 runs in
-step 6 because it depends on triage.
+The lint is a script in this skill; rule 6 runs in step 6 because it
+depends on triage. Run it on the merged report, with `min_attempts` from
+step 1 (`type: ux` claims always need 1):
 
-```bash
-# R1 verdict line
-[ "$(grep -cE '^verdict: (CLEAN|FINDINGS|BLOCKED)$' "$R")" = 1 ] || echo "R1 verdict"
-
-# R2 every live spec claim has a verdict
-awk '/^### C[0-9]+:/{c=$2; sub(/:$/,"",c); ids[c]=1} /^- status: removed-/{rm[c]=1}
-     END{for(i in ids) if(!rm[i]) print i}' "$S" | sort > "$T/claims"
-grep -oE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R" | awk '{print $2}' | sort > "$T/verdicts"
-comm -23 "$T/claims" "$T/verdicts" | sed 's/^/R2 missing /'
-comm -13 "$T/claims" "$T/verdicts" | sed 's/^/R2 unknown /'
-
-# R3 every PASS has min attempts under each persona (1 for type: ux)
-PERSONAS=$(sed -n 's/^personas: *//p' "$R" | tr -d ',')
-awk -v min=3 -v personas="$PERSONAS" '
-  BEGIN{n=split(personas,P," ")}
-  FNR==NR { if(/^### C[0-9]+:/){c=$2; sub(/:$/,"",c)} if(/^- type: ux/) ux[c]=1; next }
-  /^### C[0-9]+ — PASS/{flush(); claim=$2; inpass=1; next}
-  /^### /{flush(); inpass=0}
-  inpass && /^- attempts \(/{cur=$0; sub(/.*\(/,"",cur); sub(/\).*/,"",cur); next}
-  inpass && /^  [0-9]+\. /{cnt[cur]++}
-  END{flush()}
-  function flush(){ if(claim=="") return; m=(claim in ux)?1:min
-    for(i=1;i<=n;i++) if(cnt[P[i]]+0<m) print "R3", claim, P[i], cnt[P[i]]+0
-    split("",cnt); claim="" }' "$S" "$R"
-
-# R4 every FAIL/UNVERIFIABLE points at a finding that has repro: or reason:
-grep -E '^### C[0-9]+ — (FAIL|UNVERIFIABLE)' "$R" | grep -vE '→ F-[0-9]+-[0-9]+' | sed 's/^/R4 no finding: /'
-grep -oE '^### C[0-9]+ — (FAIL|UNVERIFIABLE) → F-[0-9]+-[0-9]+' "$R" | awk '{print $NF}' | sort -u > "$T/need"
-awk '/^### F-[0-9]+-[0-9]+ /{f=$2} /^- (repro|reason):/{if(f) ok[f]=1} END{for(k in ok) print k}' "$R" | sort -u > "$T/have"
-comm -23 "$T/need" "$T/have" | sed 's/^/R4 no repro: /'
-
-# R5 no repo source path in Files opened outside Entry points. Repo files are
-# listed relative to repo_root; scratch payloads and scripts are absolute
-# (or under $HOME) and are the verifier's own, so they are not checked.
-awk '/^## Entry points/{p=1;next} /^## /{p=0} p' "$S" > "$T/entry"
-awk '/^## Files opened/{p=1;next} /^## /{p=0} p' "$R" \
-  | grep -oE '[^ ]+\.(java|kt|ts|tsx|js|py|go|rs|rb|cs|swift|scala|c|cpp|h)$' \
-  | grep -vE '^(/|\$HOME|~)' \
-  | while read -r f; do grep -qF -- "$f" "$T/entry" || echo "R5 $f"; done
-
-# R7 coverage line matches the claim sections (re-run after step 6)
-pass=$(grep -cE '^### C[0-9]+ — PASS' "$R"); fail=$(grep -cE '^### C[0-9]+ — FAIL' "$R")
-unv=$(grep -cE '^### C[0-9]+ — UNVERIFIABLE' "$R")
-att=$(awk '/^## Claims/{p=1} /^## Findings/{p=0} p && /^  [0-9]+\. /' "$R" | wc -l | tr -d ' ')
-def=$(grep -c '^- triage: deferred' "$R")
-want="claims: $((pass+fail+unv))  pass: $pass  fail: $fail  unverifiable: $unv  attempts: $att  deferred: $def"
-have=$(awk '/^## Coverage/{getline; print; exit}' "$R")
-[ "$(echo "$want" | tr -s ' ')" = "$(echo "$have" | tr -s ' ')" ] || echo "R7 want [$want] have [$have]"
+```
+"$SKILL_DIR/scripts/lint-report.sh" --min-attempts <min_attempts> "$S" "$R"
 ```
 
-On any failure, find the persona at fault: R3 names it; for R2, R4, R5
+It prints one `R<n> …` line per failure. Exit 0: pass. Exit 1: lint
+failure. Any other exit: stop the round and report stderr; never a pass,
+never INVALID.
+
+An R1 or R7 line is a merge error of this skill, never of a persona: step 4
+writes the header verdict and the Coverage line. For R1, rewrite the header
+verdict line as step 4 says (exactly one `verdict:` line). For R7, write the
+`want` line of `R7 want [<line>] have [<line>]` as the line after
+`## Coverage`, adding that heading when it is missing. Then run the script
+again. If an R1 or R7 line is still printed after that rerun, record INVALID
+as below. This never re-prompts a persona.
+
+On an R2–R5 failure, find the persona at fault: R3 names it; for R2, R4, R5
 grep the per-persona files for the claim, finding or path. Re-prompt that
 persona **once**: same inputs plus
 `- relint: <rule numbers and the failing lines>` and
@@ -235,17 +203,23 @@ Follow `references/triage.md`. For each finding under `## Findings`:
 Claim lines keep their verdict; a FAIL whose only finding is deferred is
 still written FAIL but no longer counts toward the verdict.
 
-Recompute and write the header verdict:
+Then lint the triaged report with all seven rules, reading the exit status
+as in step 5:
 
-```bash
-loop=$(awk '/^## Findings/{p=1} /^## Spec-level/{p=0} p && /^- triage: loop/' "$R" | wc -l | tr -d ' ')
-unv=$(grep -cE '^### C[0-9]+ — UNVERIFIABLE' "$R")
-spec=$(awk '/^## Spec-level findings/{p=1;next} /^## /{p=0} p && /^### F-/' "$R" | wc -l | tr -d ' ')
-# R6: CLEAN iff all three are zero; BLOCKED iff every claim is UNVERIFIABLE; else FINDINGS
+```
+"$SKILL_DIR/scripts/lint-report.sh" --after-triage --min-attempts <min_attempts> "$S" "$R"
 ```
 
-Rewrite the `## Coverage` line with the step-5 formula (deferred count
-now non-zero when applicable) and run R7 again. Write
+The script's `want` values are what the skill writes:
+
+- `R6 want <V> have <W>` → write `verdict: <V>` in the header.
+- `R7 want [<line>] have [<line>]` → write the `want` line after
+  `## Coverage` (the deferred count is now non-zero when applicable).
+
+These lines are the skill's own triage or merge error, and the skill
+never re-prompts a persona for them. Run the script once more. A line it
+still prints → write `verdict: INVALID` and step 5's `lint:` header line at
+the top of `$R`, keep the rest, and continue at step 7. Write
 `finished: <iso>` in the header. Write the file whole (`.tmp` then `mv`).
 
 ### 7. Ledger

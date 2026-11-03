@@ -58,11 +58,28 @@ for f in skills/*/agents/*.md; do
   fi
 done
 
-# 6. Shell scripts parse.
-for s in install.sh tests/*.sh; do
-  [ -f "$s" ] || continue
+# 6. Shell scripts parse. A skill script path that is not a readable regular
+#    file (a dangling symlink, a directory) fails too: the skill could not
+#    run it. A pattern that matches nothing is skipped.
+for s in install.sh tests/*.sh skills/*/scripts/*.sh; do
+  [ -e "$s" ] || [ -L "$s" ] || continue
+  if [ ! -f "$s" ] || [ ! -r "$s" ]; then
+    bad "$s: not a readable regular file"
+    continue
+  fi
   bash -n "$s" 2>/dev/null || bad "$s: does not parse"
 done
+
+# 7. Every skill script passes its fixture cases. Relay each FAIL line of
+#    tests/scripts.sh; its "scripts ok" is not printed.
+if ! scripts_out="$(bash tests/scripts.sh)"; then
+  scripts_fails="$(printf '%s\n' "$scripts_out" | sed -n 's/^FAIL: //p')"
+  if [ -n "$scripts_fails" ]; then
+    report_lines "tests/scripts.sh" "$scripts_fails"
+  else
+    bad "tests/scripts.sh: failed without a FAIL line"
+  fi
+fi
 
 if [ "$fail" -eq 0 ]; then
   echo "lint ok"

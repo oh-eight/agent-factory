@@ -36,7 +36,7 @@ matching one of the colon-separated substrings in `FACTORY_FOREIGN_MARKERS`)
 is skipped with a message. A real directory that collides with a skill name
 is moved to `<name>.pre-factory`.
 
-Requirements: `git`, `rg`, and whatever your tools are (the engine finds
+Requirements: `git`, `rg`, `jq`, and whatever your tools are (the engine finds
 them). A GitHub or GitLab CLI that is logged in gets you PRs and CI; without
 one the run stops before the PR stage and says so.
 
@@ -194,9 +194,21 @@ zola --root site build    # writes site/public/ (ignored by git)
 ## Lints and the toy repo
 
 ```bash
-tests/lint.sh          # name/dir match, SKILL.md length, home paths, secrets, vendor words, role headers
+tests/lint.sh          # name/dir match, SKILL.md length, home paths, secrets, vendor words, role headers, parse, scripts
+tests/scripts.sh       # runs every skills/*/scripts/*.sh against its fixture cases
 tests/toy-repo.sh      # creates $HOME/tmp/pipeline-toy (a sum CLI with two tests); --reset to recreate
 ```
+
+Executable checks live in `skills/<name>/scripts/*.sh`, one script per
+name across all skills. Their fixtures live in
+`tests/fixtures/<script name without .sh>/`: the base data files plus one
+`cases` file. Each case names its args, expected exit code and expected
+stdout, and may carry a unified diff that `tests/scripts.sh` applies to a
+fresh copy of the base files before running the script there. The header of
+`tests/fixtures/lint-report/cases` documents the format. Add a case, not a
+directory or a copy of the base files. A script without cases fails
+`tests/scripts.sh`, which `tests/lint.sh` runs too. A script must be
+executable: run `chmod +x` on it before `git add`.
 
 The toy repo has one deliberate gap: `sum.py` does not handle non-numeric
 input. Run `/intake-oss "add a sum command that adds its integer arguments"`
