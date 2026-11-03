@@ -17,9 +17,10 @@ bad() { echo "FAIL: $*"; fail=1; }
 TMP="$(mktemp -d)" || { echo "FAIL: tests/scripts.sh: cannot create a temp directory"; exit 1; }
 trap 'rm -rf "$TMP"' EXIT
 
-# Split a cases file into $2/<n>/{name,args,exit,stdout,patch}.
+# Split a cases file into $2/<n>/{name,args,exit,stdout,patch}, byte for
+# byte (LC_ALL=C: a UTF-8 awk aborts on the invalid-UTF-8 case records).
 split_cases() {
-  awk -v out="$2" '
+  LC_ALL=C awk -v out="$2" '
     function open_case() { n++; dir = out "/" n; system("mkdir -p \"" dir "\""); sect = "" }
     /^=== / { open_case(); print substr($(0), 5) > (dir "/name"); next }
     n == 0 { next }
