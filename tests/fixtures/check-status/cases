@@ -941,3 +941,172 @@ patch:
    "costs": {"spawns": 0, "by_stage": {}, "wall_minutes": 0},
    "history": [{"ts": "‚Ä¶", "event": "created from /intake"}]
  }
+
+=== root-utf8-above-u10ffff
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-ÙêÄÄ",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-lead-f5
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-ıÄÄÄ",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-lead-f7
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-˜øøø",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-5-byte
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-¯àÄÄÄ",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-6-byte
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-¸ÑÄÄÄÄ",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-overlong-2-byte
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-¿Ø",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-overlong-3-byte
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-‡ÄØ",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-surrogate
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-Ì†Ä",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== root-utf8-truncated
+args: status.json
+exit: 1
+stdout:
+(root): not valid JSON
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-‚Ä",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",
+
+=== ok-utf8-edges
+args: status.json
+exit: 0
+stdout:
+patch:
+--- status.json
++++ status.json
+@@ -1,6 +1,6 @@
+ {
+   "key": "ABC-123",
+-  "profile": "vendor-a",
++  "profile": "vendor-√©ÔøøÙèøø",
+   "mode": "code",
+   "epic": null,
+   "stage": "prepare",

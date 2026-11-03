@@ -30,14 +30,33 @@ esac
 f="$1"
 name="${f##*/}"
 { [ -f "$f" ] && [ -r "$f" ]; } || die "not a readable file: $name"
-for t in jq iconv wc awk tr; do
+for t in jq od awk tr; do
   command -v "$t" >/dev/null 2>&1 || die "missing program: $t"
 done
 
-# jq decodes invalid UTF-8 as U+FFFD, so the bytes are checked first
-# (through a pipe: macOS iconv fails when its output is /dev/null).
-utf8=1
-iconv -f UTF-8 -t UTF-8 < "$f" 2>/dev/null | wc -c > /dev/null || utf8=0
+# jq decodes invalid UTF-8 as U+FFFD, so the bytes are checked first, one
+# decimal byte per od word, against the RFC 3629 table: no C0, C1 or F5-FF
+# lead, no overlong form, no surrogate, nothing above U+10FFFF, no sequence
+# cut short. Not iconv: macOS iconv accepts 5- and 6-byte forms.
+utf8="$(LC_ALL=C od -An -v -tu1 < "$f" | LC_ALL=C awk '
+  {
+    for (i = 1; i <= NF; i++) {
+      b = $i + 0
+      if (need) {
+        if (b < lo || b > hi) bad = 1
+        need--; lo = 128; hi = 191
+      } else if (b >= 128) {
+        lo = 128; hi = 191
+        if (b >= 194 && b <= 223) need = 1
+        else if (b >= 224 && b <= 239) { need = 2; if (b == 224) lo = 160; if (b == 237) hi = 159 }
+        else if (b >= 240 && b <= 244) { need = 3; if (b == 240) lo = 144; if (b == 244) hi = 143 }
+        else bad = 1
+      }
+    }
+  }
+  END { print (bad || need) ? 0 : 1 }
+')" || die "cannot check $name (od failed)"
+case "$utf8" in 0|1) ;; *) die "cannot check $name (od failed)" ;; esac
 
 # jq also parses what RFC 8259 rejects (NaN, Infinity, 01, .5, 1., +1):
 # outside strings, every token has to be a JSON literal or number. One pass,
