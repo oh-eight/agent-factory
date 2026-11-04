@@ -1,0 +1,1870 @@
+# Fixture cases for skills/pipeline/scripts/valve.sh.
+# Every case starts from the files in this directory: config.json (the
+# FACTORY_HOME config beside the run dirs), run/ (a round-2 run that trips
+# nothing: a ledger with only fixed, deferred and non-consecutive entries,
+# FINDINGS verdicts, a CI finding that repeats nothing, a decision only in
+# round 1's builder report, 2 of 3 fix passes with outcome complete, budgets
+# under their limits) and bare/ (a run dir holding only status.json).
+#
+#   === <case name>
+#   args: <words passed to the script; split on spaces, no quoting>
+#   exit: <expected exit code>
+#   stdout:
+#   <expected stdout, one line per line; nothing for empty output>
+#   patch:
+#   <optional unified diff applied to the base files before the run>
+
+=== ok-clean
+args: run
+exit: 0
+stdout:
+ok
+
+=== ok-only-status-json
+args: bare
+exit: 0
+stdout:
+ok
+
+=== ok-round-1
+args: bare
+exit: 0
+stdout:
+ok
+patch:
+--- bare/status.json
++++ bare/status.json
+@@ -2,5 +2,5 @@
+   "key": "T-2",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2
++  "round": 1
+ }
+
+=== ok-trailing-slash
+args: run/
+exit: 0
+stdout:
+ok
+
+=== max-rounds-reached
+args: run
+exit: 3
+stdout:
+tripped: max_rounds round=5 limit=5
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 5,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== max-rounds-over
+args: run
+exit: 3
+stdout:
+tripped: max_rounds round=7 limit=5
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 7,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== max-rounds-under
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 4,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== max-rounds-from-config
+args: run
+exit: 3
+stdout:
+tripped: max_rounds round=2 limit=2
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_rounds": 2}}
+
+=== max-rounds-from-config-bare
+args: bare
+exit: 3
+stdout:
+tripped: max_rounds round=2 limit=2
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_rounds": 2}}
+
+=== config-one-key
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=10 limit=9
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_agent_spawns": 9}}
+
+=== config-budget-null
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": null}
+
+=== config-dotted-key-ignored
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget.max_rounds": 1}
+
+=== status-budget-wins
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_rounds": 5}}
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,8 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 5,
+   "harness": "claude-code",
++  "budget": {"max_rounds": 6},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-only-its-keys
+args: run
+exit: 3
+stdout:
+tripped: max_rounds round=5 limit=5
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_rounds": 5}}
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,8 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 5,
+   "harness": "claude-code",
++  "budget": {"max_wall_minutes": 29},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-wall
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=30 limit=29
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
++  "budget": {"max_wall_minutes": 29},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-null
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
++  "budget": null,
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-within-cap
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,8 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 9,
+   "harness": "claude-code",
++  "budget": {"max_rounds": 10},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-above-cap-clamped
+args: run
+exit: 3
+stdout:
+tripped: max_rounds round=10 limit=10
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,8 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 10,
+   "harness": "claude-code",
++  "budget": {"max_rounds": 500},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-above-cap-of-config
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=10 limit=8
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_agent_spawns": 4}}
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
++  "budget": {"max_agent_spawns": 100000},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== status-budget-huge-wall-clamped
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=481 limit=480
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "budget": {"max_wall_minutes": 1e18},
++  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 481}
+ }
+
+=== ledger-repeat
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="c5-neg" source=ledger rounds=1,2
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -2,5 +2,6 @@
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+   "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
++  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null},
++  "c5-neg": {"claim": "C5", "rounds": [1, 2], "status": "open", "ticket": null}
+ }
+
+=== ledger-repeat-byte-order
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="aa-a" source=ledger rounds=1,2
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -2,5 +2,7 @@
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+   "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
++  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null},
++  "zz-b": {"claim": "C2", "rounds": [1, 2], "status": "open", "ticket": null},
++  "aa-a": {"claim": "C1", "rounds": [1, 2], "status": "open", "ticket": null}
+ }
+
+=== ledger-rounds-out-of-order
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="c3-new" source=ledger rounds=1,2
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1,6 @@
+ {
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
++  "c3-new": {"claim": "C3", "rounds": [2, 1], "status": "open", "ticket": null},
+   "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+ }
+
+=== ledger-hostile-fingerprint
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="fp\n$(touch pwned)`touch pwned2`\u001b[31m" source=ledger rounds=1,2
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1 @@
+-{
+-  "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+-  "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+-}
++{"fp\n$(touch pwned)`touch pwned2`\u001b[31m": {"claim": "C1", "rounds": [1, 2], "status": "open", "ticket": null}}
+
+=== ledger-non-ascii-fingerprint
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="a\u009b31m\u202eb\u2028c\u00e9\ud83d\ude00" source=ledger rounds=1,2
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1 @@
+-{
+-  "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+-  "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+-}
++{"a\u009b31m\u202eb\u2028c\u00e9\ud83d\ude00": {"claim": "C1", "rounds": [1, 2], "status": "open", "ticket": null}}
+
+=== ledger-empty
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1 @@
+-{
+-  "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+-  "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+-}
++{}
+
+=== ci-findings-repeat-round-n
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="ci-unit-sum-fails" source=ci-findings round=2
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: F-1-ci-1  personas: build-nurse
+ - claim: C1
+
+=== ci-findings-repeat-round-n-1
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="ci-lint-fails" source=ci-findings round=1
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -1,3 +1,5 @@
++# CI findings round 1 — T-1
++### F-1-ci-1  fingerprint: ci-lint-fails  repeat-of: F-0-ci-1  personas: build-nurse
+ # CI findings round 2 — T-1
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+
+=== ci-findings-repeat-too-old
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -1,6 +1,6 @@
+-# CI findings round 2 — T-1
++# CI findings round 1 — T-1
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: F-0-ci-1  personas: build-nurse
+ - claim: C1
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 3,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== ci-findings-repeat-of-empty
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of:  personas: build-nurse
+ - claim: C1
+
+=== ci-findings-hostile-fingerprint
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="$(touch${IFS}pwned3)" source=ci-findings round=2
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: $(touch${IFS}pwned3)  repeat-of: F-1-ci-1  personas: build-nurse
+ - claim: C1
+
+=== ci-findings-non-ascii-fingerprint
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="ci-\u00e9-\ud83d\ude00" source=ci-findings round=2
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: ci-é-😀  repeat-of: F-1-ci-1  personas: build-nurse
+ - claim: C1
+
+=== ci-findings-repeat-without-fingerprint
+args: run
+exit: 2
+stdout:
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  repeat-of: F-1-ci-1  personas: build-nurse
+ - claim: C1
+
+=== ci-findings-repeat-before-any-section
+args: bare
+exit: 0
+stdout:
+ok
+patch:
+--- bare/status.json
++++ bare/status.json
+@@ -2,5 +2,5 @@
+   "key": "T-2",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2
++  "round": 1
+ }
+--- /dev/null
++++ bare/nurse/ci-findings.md
+@@ -0,0 +1,3 @@
++### F-1-ci-1  fingerprint: ci-lint-fails  repeat-of: F-0-ci-1  personas: build-nurse
++# CI findings round 1 — T-2
++verdict: FINDINGS
+
+=== ledger-before-ci-findings
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="c5-neg" source=ledger rounds=1,2
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: F-1-ci-1  personas: build-nurse
+ - claim: C1
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -2,5 +2,6 @@
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+   "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
++  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null},
++  "c5-neg": {"claim": "C5", "rounds": [1, 2], "status": "open", "ticket": null}
+ }
+
+=== blocked-twice
+args: run
+exit: 3
+stdout:
+tripped: blocked twice rounds=1,2
+patch:
+--- run/verification/round-1.md
++++ run/verification/round-1.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 1111111  base: 0000000  spec_hash: 2222222
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED  
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== blocked-once
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== blocked-look-alike
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-1.md
++++ run/verification/round-1.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 1111111  base: 0000000  spec_hash: 2222222
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: FINDINGS
++verdict: BLOCKEDX
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== blocked-only-on-a-later-line
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-1.md
++++ run/verification/round-1.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 1111111  base: 0000000  spec_hash: 2222222
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,4 @@
+ # Verification round 2 — T-1
+ verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
++verdict: BLOCKED
+
+=== invalid-twice
+args: run
+exit: 3
+stdout:
+tripped: invalid twice rounds=1,2
+patch:
+--- run/verification/round-1.md
++++ run/verification/round-1.md
+@@ -1,3 +1,5 @@
++verdict: INVALID
++lint: budget
+ # Verification round 1 — T-1
+ verdict: FINDINGS
+ head: 1111111  base: 0000000  spec_hash: 2222222
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,5 @@
++verdict: INVALID
++lint: R3 C2 attacker 1
+ # Verification round 2 — T-1
+ verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== invalid-after-blocked
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-1.md
++++ run/verification/round-1.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 1111111  base: 0000000  spec_hash: 2222222
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,5 @@
++verdict: INVALID
++lint: budget
+ # Verification round 2 — T-1
+ verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== decision-needed
+args: run
+exit: 3
+stdout:
+tripped: decision needed round=2
+patch:
+--- run/build/round-2/builder.md
++++ run/build/round-2/builder.md
+@@ -2,6 +2,7 @@
+ ## Claims
+ - C1 done
+ ## Decisions needed
++- C5: exit 1 or exit 2 on empty input
+ 
+ ## Spec problems
+ - none
+
+=== decision-needed-in-fix-report
+args: run
+exit: 3
+stdout:
+tripped: decision needed round=2
+patch:
+--- run/build/round-2/builder-fix-1.md
++++ run/build/round-2/builder-fix-1.md
+@@ -2,4 +2,4 @@
+ ## Fixes
+ - F-1-1 fixed
+ ## Decisions needed
+-none
++- C7: retry or fail
+
+=== decision-none-item
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/build/round-2/builder.md
++++ run/build/round-2/builder.md
+@@ -2,6 +2,7 @@
+ ## Claims
+ - C1 done
+ ## Decisions needed
++- None
+ 
+ ## Spec problems
+ - none
+
+=== decision-section-ends-at-level-1-heading
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/build/round-2/builder.md
++++ run/build/round-2/builder.md
+@@ -2,6 +2,8 @@
+ ## Claims
+ - C1 done
+ ## Decisions needed
++# Notes
++- C5: exit 1 or exit 2 on empty input
+ 
+ ## Spec problems
+ - none
+
+=== spawns-over
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=61 limit=60
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 61, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== spawns-at-limit
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 60, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== spawns-from-costs-json
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=12 limit=11
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_agent_spawns": 11}}
+--- run/costs.json
++++ run/costs.json
+@@ -8,3 +8,5 @@
+ {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+ {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+ {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
++{"stage": "verify", "role": "verifier", "model": "inherit", "started": "2026-11-03T11:00:00Z", "ended": "2026-11-03T11:10:00Z"}
++{"stage": "verify", "role": "verifier", "model": "inherit", "started": "2026-11-03T11:00:00Z", "ended": "2026-11-03T11:12:00Z"}
+
+=== spawns-from-costs-json-array
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=11 limit=10
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_agent_spawns": 10}}
+--- run/costs.json
++++ run/costs.json
+@@ -1,10 +1 @@
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:01:00Z", "ended": "2026-11-03T10:01:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:02:00Z", "ended": "2026-11-03T10:02:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:03:00Z", "ended": "2026-11-03T10:03:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:04:00Z", "ended": "2026-11-03T10:04:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:05:00Z", "ended": "2026-11-03T10:05:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:06:00Z", "ended": "2026-11-03T10:06:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:07:00Z", "ended": "2026-11-03T10:07:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
++[{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:01:00Z","ended":"2026-11-03T10:01:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:02:00Z","ended":"2026-11-03T10:02:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:03:00Z","ended":"2026-11-03T10:03:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:04:00Z","ended":"2026-11-03T10:04:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:05:00Z","ended":"2026-11-03T10:05:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:06:00Z","ended":"2026-11-03T10:06:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:07:00Z","ended":"2026-11-03T10:07:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:08:00Z","ended":"2026-11-03T10:08:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:09:00Z","ended":"2026-11-03T10:09:30Z"},{"stage":"spec","role":"builder","model":"opus","started":"2026-11-03T10:10:00Z","ended":"2026-11-03T10:10:30Z"},{"stage":"verify"}]
+
+=== wall-over
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=241 limit=240
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 241}
+ }
+
+=== wall-at-limit
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 240}
+ }
+
+=== wall-fraction-floored
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 240.9}
+ }
+
+=== wall-from-checkpoint
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T14:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
+
+=== wall-only-last-checkpoint
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+-2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
++2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T14:00:00Z checkpoint round=2 spawns=14/60 wall=100/240min inner=1/3
+
+=== wall-last-checkpoint-without-wall
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+-2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
++2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T14:00:00Z checkpoint round=2 spawns=14/60 inner=1/3
+
+=== wall-checkpoint-not-a-number
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T14:00:00Z checkpoint round=2 spawns=14/60 wall=abc/240min inner=1/3
+
+=== inner-passes-over
+args: run
+exit: 3
+stdout:
+tripped: budget max_inner_passes used=2 limit=1
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_inner_passes": 1}}
+
+=== inner-passes-at-limit-blocked
+args: run
+exit: 3
+stdout:
+tripped: budget max_inner_passes used=2 limit=2
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_inner_passes": 2}}
+--- run/build/round-2/summary.md
++++ run/build/round-2/summary.md
+@@ -1,2 +1,2 @@
+ # Summary: T-1 — round 2
+-outcome: complete
++outcome: blocked
+
+=== inner-passes-at-limit-complete
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_inner_passes": 2}}
+
+=== inner-passes-under-blocked
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/build/round-2/summary.md
++++ run/build/round-2/summary.md
+@@ -1,2 +1,2 @@
+ # Summary: T-1 — round 2
+-outcome: complete
++outcome: blocked
+
+=== order-max-rounds-first
+args: run
+exit: 3
+stdout:
+tripped: max_rounds round=5 limit=5
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 5,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 61, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== order-repeat-before-blocked
+args: run
+exit: 3
+stdout:
+tripped: repeat fingerprint="ci-unit-sum-fails" source=ci-findings round=2
+patch:
+--- run/nurse/ci-findings.md
++++ run/nurse/ci-findings.md
+@@ -2,5 +2,5 @@
+ verdict: FINDINGS
+ head: abc1234  source: build-nurse  pass: 1
+ ## Findings
+-### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: none  personas: build-nurse
++### F-2-ci-1  fingerprint: ci-unit-sum-fails  repeat-of: F-1-ci-1  personas: build-nurse
+ - claim: C1
+--- run/verification/round-1.md
++++ run/verification/round-1.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 1111111  base: 0000000  spec_hash: 2222222
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== order-blocked-before-decision
+args: run
+exit: 3
+stdout:
+tripped: blocked twice rounds=1,2
+patch:
+--- run/build/round-2/builder-fix-1.md
++++ run/build/round-2/builder-fix-1.md
+@@ -2,4 +2,4 @@
+ ## Fixes
+ - F-1-1 fixed
+ ## Decisions needed
+-none
++- C7: retry or fail
+--- run/verification/round-1.md
++++ run/verification/round-1.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 1111111  base: 0000000  spec_hash: 2222222
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: FINDINGS
++verdict: BLOCKED
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== order-decision-before-budget
+args: run
+exit: 3
+stdout:
+tripped: decision needed round=2
+patch:
+--- run/build/round-2/builder-fix-1.md
++++ run/build/round-2/builder-fix-1.md
+@@ -2,4 +2,4 @@
+ ## Fixes
+ - F-1-1 fixed
+ ## Decisions needed
+-none
++- C7: retry or fail
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 61, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== order-spawns-before-wall
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=61 limit=60
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 61, "by_stage": {}, "wall_minutes": 241}
+ }
+
+=== order-wall-before-inner
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=241 limit=240
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_inner_passes": 1}}
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 241}
+ }
+
+=== usage-no-args
+args: 
+exit: 2
+stdout:
+
+=== usage-two-args
+args: run run
+exit: 2
+stdout:
+
+=== usage-option
+args: -x
+exit: 2
+stdout:
+
+=== usage-missing-dir
+args: nope
+exit: 2
+stdout:
+
+=== usage-file-not-dir
+args: run/status.json
+exit: 2
+stdout:
+
+=== usage-dir-without-status
+args: run/build
+exit: 2
+stdout:
+
+=== bad-status-not-json
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -1,9 +1 @@
+-{
+-  "key": "T-1",
+-  "profile": "discovered",
+-  "mode": "code",
+-  "stage": "verify",
+-  "round": 2,
+-  "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+-}
++{
+\ No newline at end of file
+
+=== bad-status-array
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -1,9 +1 @@
+-{
+-  "key": "T-1",
+-  "profile": "discovered",
+-  "mode": "code",
+-  "stage": "verify",
+-  "round": 2,
+-  "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+-}
++[]
+
+=== bad-round-string
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": "2",
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== bad-round-zero
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 0,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== bad-round-fraction
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,7 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
++  "round": 2.5,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== bad-round-missing
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -3,7 +3,6 @@
+   "profile": "discovered",
+   "mode": "code",
+   "stage": "verify",
+-  "round": 2,
+   "harness": "claude-code",
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== bad-spawns-string
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,5 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": "10", "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== bad-status-budget-string
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
++  "budget": {"max_rounds": "6"},
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== bad-status-budget-array
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,6 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
++  "budget": [],
+   "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+ }
+
+=== bad-ledger-not-json
+args: run
+exit: 2
+stdout:
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1 @@
+-{
+-  "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+-  "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
+-  "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+-}
++[
+\ No newline at end of file
+
+=== bad-ledger-rounds
+args: run
+exit: 2
+stdout:
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1,6 @@
+ {
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
++  "c3-new": {"claim": "C3", "rounds": "2", "status": "open", "ticket": null},
+   "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+ }
+
+=== bad-ledger-entry-without-status
+args: run
+exit: 2
+stdout:
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -1,6 +1,6 @@
+ {
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+-  "c3-new": {"claim": "C3", "rounds": [2], "status": "open", "ticket": null},
++  "c3-new": {"claim": "C3", "rounds": [2], "ticket": null},
+   "c4-gap": {"claim": "C4", "rounds": [1, 3], "status": "open", "ticket": null}
+ }
+
+=== bad-ledger-directory
+args: bare
+exit: 2
+stdout:
+patch:
+--- /dev/null
++++ bare/verification/ledger.json/entry
+@@ -0,0 +1 @@
++{}
+
+=== bad-config-not-json
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{
+\ No newline at end of file
+
+=== bad-config-budget-string
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_rounds": "5"}}
+
+=== bad-config-budget-zero
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_rounds": 0}}
+
+=== bad-config-budget-negative
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_agent_spawns": -1}}
+
+=== bad-config-budget-array
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": []}
+
+=== bad-costs-json
+args: run
+exit: 2
+stdout:
+patch:
+--- run/costs.json
++++ run/costs.json
+@@ -1,10 +1 @@
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:01:00Z", "ended": "2026-11-03T10:01:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:02:00Z", "ended": "2026-11-03T10:02:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:03:00Z", "ended": "2026-11-03T10:03:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:04:00Z", "ended": "2026-11-03T10:04:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:05:00Z", "ended": "2026-11-03T10:05:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:06:00Z", "ended": "2026-11-03T10:06:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:07:00Z", "ended": "2026-11-03T10:07:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
++nope
+
+=== bad-costs-json-entry-not-object
+args: run
+exit: 2
+stdout:
+patch:
+--- run/costs.json
++++ run/costs.json
+@@ -8,3 +8,3 @@
+ {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+ {"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
++1
+
+=== wall-checkpoint-fraction-floored
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250.5/240min inner=1/3
+
+=== wall-checkpoint-fraction-at-limit
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,4 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=240.9/240min inner=1/3
+
+=== wall-checkpoint-forged-lines-ignored
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,8 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++stderr: checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
++stderr: 2026-11-03T13:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
++x checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
++stderr: valve.sh: cannot read run.log
+
+=== config-empty
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +0,0 @@
+-{}
+
+=== config-whitespace-only
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++ 
+
+=== costs-json-empty
+args: run
+exit: 2
+stdout:
+patch:
+--- run/costs.json
++++ run/costs.json
+@@ -1,10 +0,0 @@
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:01:00Z", "ended": "2026-11-03T10:01:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:02:00Z", "ended": "2026-11-03T10:02:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:03:00Z", "ended": "2026-11-03T10:03:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:04:00Z", "ended": "2026-11-03T10:04:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:05:00Z", "ended": "2026-11-03T10:05:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:06:00Z", "ended": "2026-11-03T10:06:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:07:00Z", "ended": "2026-11-03T10:07:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
+
+=== per-run-budget-fraction
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,12 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {
++    "spawns": 10,
++    "by_stage": {},
++    "wall_minutes": 30
++  },
++  "budget": {
++    "max_rounds": 5.5
++  }
+ }
+
+=== per-run-budget-unknown-key
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/status.json
++++ run/status.json
+@@ -5,5 +5,12 @@
+   "stage": "verify",
+   "round": 2,
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {
++    "spawns": 10,
++    "by_stage": {},
++    "wall_minutes": 30
++  },
++  "budget": {
++    "max_bogus": 3
++  }
+ }
+
+=== costs-json-whitespace-only
+args: run
+exit: 2
+stdout:
+patch:
+--- run/costs.json
++++ run/costs.json
+@@ -1,10 +1 @@
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:01:00Z", "ended": "2026-11-03T10:01:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:02:00Z", "ended": "2026-11-03T10:02:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:03:00Z", "ended": "2026-11-03T10:03:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:04:00Z", "ended": "2026-11-03T10:04:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:05:00Z", "ended": "2026-11-03T10:05:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:06:00Z", "ended": "2026-11-03T10:06:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:07:00Z", "ended": "2026-11-03T10:07:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:08:00Z", "ended": "2026-11-03T10:08:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:09:00Z", "ended": "2026-11-03T10:09:30Z"}
+-{"stage": "spec", "role": "builder", "model": "opus", "started": "2026-11-03T10:10:00Z", "ended": "2026-11-03T10:10:30Z"}
++ 
+
+=== wall-checkpoint-stamp-junk
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++9999-99-99Tjunk checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-zero
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++0000-00-00T00:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-month-13
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-13-03T10:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-hour-24
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T24:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-fraction
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T10:00:00.5Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-offset
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T10:00:00+00:00 checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+=== wall-checkpoint-stamp-basic-format
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,3 @@
+ 2026-11-03T10:00:00Z prepare resume
+-2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
++20261103T103000Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
+
+=== wall-checkpoint-stamp-no-calendar-check
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,3 @@
+ 2026-11-03T10:00:00Z prepare resume
+-2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
++2026-02-31T23:59:59Z checkpoint round=1 spawns=6/60 wall=250/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
+
+=== wall-checkpoint-stamp-month-00
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-00-03T10:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+
+=== wall-checkpoint-stamp-day-00
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-00T10:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+
+=== wall-checkpoint-stamp-day-32
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-32T10:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+
+=== wall-checkpoint-stamp-minute-60
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T10:60:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+
+=== wall-checkpoint-stamp-second-60
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T10:00:60Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+
+=== wall-checkpoint-stamp-trailing
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++2026-11-03T10:00:00Zx checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+
+
+=== wall-checkpoint-stamp-leading
+args: run
+exit: 3
+stdout:
+tripped: budget max_wall_minutes used=250 limit=240
+patch:
+--- run/run.log
++++ run/run.log
+@@ -1,3 +1,5 @@
+ 2026-11-03T10:00:00Z prepare resume
+ 2026-11-03T10:30:00Z checkpoint round=1 spawns=6/60 wall=20/240min inner=1/3
+ 2026-11-03T10:40:00Z verify round 1 FINDINGS
++2026-11-03T12:00:00Z checkpoint round=2 spawns=14/60 wall=250/240min inner=1/3
++12026-11-03T10:00:00Z checkpoint round=2 spawns=1/60 wall=1/240min inner=0/3
+

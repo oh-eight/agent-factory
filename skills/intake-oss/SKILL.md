@@ -134,8 +134,8 @@ Follow `references/classifier.md`.
 - A CI build URL → find the PR it belongs to (profile `ci` notes, else the
   branch in the build), locate or seed the run, `build-nurse <url>`.
 - The user's own PR (author equals `pr.view` viewer) with no run:
-  - open → seed `status.json` at `stage: nurse` with the PR number, branch
-    and repo, then `pipeline KEY`. KEY comes from the branch or the body;
+  - open → seed `status.json` at `stage: nurse` with `key`, `mode: code`,
+    `round: 1`, the PR number, branch and repo, then `pipeline KEY`. KEY comes from the branch or the body;
     with none, `tracker.create` a ticket that summarises the PR (file
     tracker when that is the profile's tracker) so the key has a ticket
     behind it, then seed.

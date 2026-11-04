@@ -1,0 +1,9 @@
+{
+  "key": "T-1",
+  "profile": "discovered",
+  "mode": "code",
+  "stage": "verify",
+  "round": 2,
+  "harness": "claude-code",
+  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
+}

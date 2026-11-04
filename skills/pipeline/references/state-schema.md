@@ -72,6 +72,7 @@ $FACTORY_HOME/
   "gates": ["merge"],
   "pending_gate": null,
   "overrides": {},
+  "budget": {},
   "instructions": [],
   "gaps": [],
   "lock": {"owner": null, "since": null},
@@ -80,8 +81,19 @@ $FACTORY_HOME/
 }
 ```
 
-Field rules:
+Field rules (checked by `scripts/check-status.sh <status.json>`, which the
+pipeline runs after every stage write; it prints one `<field>: <problem>`
+line per problem and exit 1, and never repairs the file):
 
+- Required: `key`, `mode`, `stage`, `round`. Every other field is optional;
+  extra keys are allowed.
+- Types: `key` non-empty string; `profile`, `harness` string; `epic`,
+  `pending_gate` string or null; `round` integer >= 1; `repo`, `branch`,
+  `ticket`, `pr`, `nurse`, `review`, `sanity`, `sentinel`, `overrides`,
+  `budget`, `lock`, `costs` object; `children`, `gates`, `instructions`,
+  `gaps`, `history` array; inside `costs`: `spawns` integer >= 0,
+  `by_stage` object, `wall_minutes` number >= 0. Other nested objects are
+  checked only for being objects.
 - `stage` ∈ `intake | prepare | spec | verify | pr | nurse | gated | merge |
   sentinel | incident | learn | done | escalated | stopped`.
 - `mode` ∈ `code | research | measure | decision | rollout | closeout`.
@@ -98,6 +110,17 @@ Field rules:
   seeds a child run from a parent (the decomposer's split, `factory
   --stack`) copies the parent's `overrides` verbatim; a child never
   re-detects.
+- `budget{}` is the per-run budget override: keys as in
+  `config.json.budget` (`max_rounds`, `max_inner_passes`,
+  `max_agent_spawns`, `max_wall_minutes`), each a positive integer. The
+  pipeline writes a key only when it applies an `answer:` instruction that
+  a human typed as `<front door> KEY <text>` and that raises a budget for
+  this run, never from a brief appended by dedupe or chat-intake, a
+  `sanity:` line or a stage agent; unlike `overrides{}` it may change
+  during the run. A value is at most twice the `config.json` value (the
+  governor default when config has none); the pipeline writes a larger ask
+  at that cap. The valve reads it before `config.json` and clamps a larger
+  value to the cap (`governor.md` "Valve").
 - `instructions[]` are strings appended by `<front door> KEY <text>`. Every
   stage reads them at start, applies what it can, and appends
   `applied: <text>` to `history[]`. They are never deleted.
