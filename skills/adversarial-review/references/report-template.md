@@ -113,7 +113,8 @@ fingerprints for `ledger.json` and the valve.
    `low`/`medium`/`high` and the four categories above, `Medium` and
    `Security` included), a missing one, a `- claim:` that is neither
    `spec` nor a claim id in `spec.md`, or one of those lines given twice,
-   also blocks (fail closed). A `deferred` line never hides a blocking
+   also blocks (fail closed), and so does a `### F-` block under any
+   other heading (or none). A `deferred` line never hides a blocking
    finding. A non-blocking finding under `## Findings` whose triage is
    `deferred` and whose claim is not `type: security` is skipped. Every
    other finding is a known issue. The wanted triage word is `loop` for a

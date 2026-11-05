@@ -124,8 +124,9 @@ awk '/^## Files opened/{p=1;next} /^## /{p=0} p' "$R" \
       <(lines "$entry") - || norun R5
 
 # R6 triage words and header verdict after triage (--after-triage only).
-# Every ### F- block under ## Findings and ## Spec-level findings is
-# classified from its own fields. It blocks when its severity is not low or
+# Every ### F- block is classified from its own fields. It blocks when it
+# sits under any heading but exactly ## Findings or ## Spec-level findings
+# (or under none), when its severity is not low or
 # medium (high, empty, missing or misspelt), its category is not one of
 # implementation-bug, spec-gap or env (security, or anything unrecognised),
 # its claim is neither "spec" nor a claim id in spec.md, or it is medium on a
@@ -151,7 +152,8 @@ if [ "$after" = 1 ]; then
       blocks = (sev != "low" && sev != "medium") ||
         (cat != "implementation-bug" && cat != "spec-gap" && cat != "env") ||
         (cl != "spec" && !(cl in known)) ||
-        (ty == "security" && sev == "medium")
+        (ty == "security" && sev == "medium") ||
+        (sec != "F" && sec != "S")
       if (!blocks && tr == "deferred" && sec == "F" && ty != "security") { id = ""; return }
       w = blocks ? "loop" : "known"
       if (blocks) nb++; else nk++
@@ -164,8 +166,8 @@ if [ "$after" = 1 ]; then
       if (c != "" && !(c in type) && /^- type:/) type[c] = val("type")
       next
     }
-    /^## / { flush(); sec = ($0 ~ /^## Findings/) ? "F" : (($0 ~ /^## Spec-level findings/) ? "S" : ""); next }
-    /^### / { flush(); if (sec != "" && /^### F-/) { id = $2; tr = "none"; split("", fv) } next }
+    /^## / { flush(); sec = ($0 ~ /^## Findings[ \t\r]*$/) ? "F" : (($0 ~ /^## Spec-level findings[ \t\r]*$/) ? "S" : ""); next }
+    /^### / { flush(); if (/^### F-/) { id = $2; tr = "none"; split("", fv) } next }
     id != "" && /^- (severity|category|claim):/ { k = $0; sub(/^- /, "", k); sub(/:.*/, "", k); setf(k, val(k)); next }
     id != "" && tr == "none" && /^- triage:/ { t = val("triage"); split(t, a, /[ \t]+/); if (a[1] != "") tr = a[1] }
     END { flush(); print nb + 0, nk + 0; for (i = 1; i <= no; i++) print out[i] }' "$S" "$R") || norun R6
