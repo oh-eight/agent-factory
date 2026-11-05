@@ -2,7 +2,8 @@
 # Every case starts from the files in this directory: config.json (the
 # FACTORY_HOME config beside the run dirs), run/ (a round-2 run that trips
 # nothing: a ledger with only fixed, deferred and non-consecutive entries,
-# FINDINGS verdicts, a CI finding that repeats nothing, a decision only in
+# a FINDINGS round 1 and a SHIP round 2, so the default verify.max_rounds
+# of 1 trips nothing, a CI finding that repeats nothing, a decision only in
 # round 1's builder report, 2 of 3 fix passes with outcome complete, budgets
 # under their limits) and bare/ (a run dir holding only status.json).
 #
@@ -609,7 +610,7 @@ patch:
 +++ run/verification/round-2.md
 @@ -1,3 +1,3 @@
  # Verification round 2 — T-1
--verdict: FINDINGS
+-verdict: SHIP
 +verdict: BLOCKED  
  head: 3333333  base: 0000000  spec_hash: 2222222
 
@@ -623,7 +624,7 @@ patch:
 +++ run/verification/round-2.md
 @@ -1,3 +1,3 @@
  # Verification round 2 — T-1
--verdict: FINDINGS
+-verdict: SHIP
 +verdict: BLOCKED
  head: 3333333  base: 0000000  spec_hash: 2222222
 
@@ -644,7 +645,7 @@ patch:
 +++ run/verification/round-2.md
 @@ -1,3 +1,3 @@
  # Verification round 2 — T-1
--verdict: FINDINGS
+-verdict: SHIP
 +verdict: BLOCKEDX
  head: 3333333  base: 0000000  spec_hash: 2222222
 
@@ -665,7 +666,7 @@ patch:
 +++ run/verification/round-2.md
 @@ -1,3 +1,4 @@
  # Verification round 2 — T-1
- verdict: FINDINGS
+ verdict: SHIP
  head: 3333333  base: 0000000  spec_hash: 2222222
 +verdict: BLOCKED
 
@@ -689,7 +690,7 @@ patch:
 +verdict: INVALID
 +lint: R3 C2 attacker 1
  # Verification round 2 — T-1
- verdict: FINDINGS
+ verdict: SHIP
  head: 3333333  base: 0000000  spec_hash: 2222222
 
 === invalid-after-blocked
@@ -711,7 +712,7 @@ patch:
 +verdict: INVALID
 +lint: budget
  # Verification round 2 — T-1
- verdict: FINDINGS
+ verdict: SHIP
  head: 3333333  base: 0000000  spec_hash: 2222222
 
 === decision-needed
@@ -1020,6 +1021,250 @@ patch:
 -outcome: complete
 +outcome: blocked
 
+=== verify-findings-default
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=1
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== verify-findings-under-config
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": 3}}
+
+=== verify-findings-at-config
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=2
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": 2}}
+
+=== verify-findings-trailing-space
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=1
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS  
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== verify-config-null
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=1
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": null}
+
+=== verify-config-max-rounds-null
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=1
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": null}}
+
+=== verify-config-dotted-key-ignored
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=1
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify.max_rounds": 5}
+
+=== verify-status-within-cap
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": 2}}
+--- run/status.json
++++ run/status.json
+@@ -6,2 +6,3 @@
+   "round": 2,
++  "verify": {"max_rounds": 4},
+   "harness": "claude-code",
+
+=== verify-status-above-cap-clamped
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=2
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- run/status.json
++++ run/status.json
+@@ -6,2 +6,3 @@
+   "round": 2,
++  "verify": {"max_rounds": 5},
+   "harness": "claude-code",
+
+=== verify-not-tripped-on-clean
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: CLEAN
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== verify-not-tripped-on-blocked
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: BLOCKED
+ head: 3333333  base: 0000000  spec_hash: 2222222
+
+=== verify-not-tripped-on-invalid
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,2 +1,4 @@
+ # Verification round 2 — T-1
++verdict: INVALID
++lint: budget
+ verdict: SHIP
+
+=== verify-round-without-report
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- run/status.json
++++ run/status.json
+@@ -5,3 +5,3 @@
+   "stage": "verify",
+-  "round": 2,
++  "round": 3,
+   "harness": "claude-code",
+
+=== verify-ledger-known-not-repeat
+args: run
+exit: 0
+stdout:
+ok
+patch:
+--- run/verification/ledger.json
++++ run/verification/ledger.json
+@@ -2,2 +2,3 @@
+   "c1-fixed": {"claim": "C1", "rounds": [1, 2], "status": "fixed", "ticket": null},
++  "c5-known": {"claim": "C5", "rounds": [1, 2], "status": "known", "ticket": "T-8"},
+   "c2-deferred": {"claim": "C2", "rounds": [1, 2], "status": "deferred", "ticket": "T-9"},
+
 === order-max-rounds-first
 args: run
 exit: 3
@@ -1065,7 +1310,7 @@ patch:
 +++ run/verification/round-2.md
 @@ -1,3 +1,3 @@
  # Verification round 2 — T-1
--verdict: FINDINGS
+-verdict: SHIP
 +verdict: BLOCKED
  head: 3333333  base: 0000000  spec_hash: 2222222
 
@@ -1094,7 +1339,7 @@ patch:
 +++ run/verification/round-2.md
 @@ -1,3 +1,3 @@
  # Verification round 2 — T-1
--verdict: FINDINGS
+-verdict: SHIP
 +verdict: BLOCKED
  head: 3333333  base: 0000000  spec_hash: 2222222
 
@@ -1157,6 +1402,46 @@ patch:
    "harness": "claude-code",
 -  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
 +  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 241}
+ }
+
+=== order-inner-before-verify
+args: run
+exit: 3
+stdout:
+tripped: budget max_inner_passes used=2 limit=1
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"budget": {"max_inner_passes": 1}}
+
+=== order-spawns-before-verify
+args: run
+exit: 3
+stdout:
+tripped: budget max_agent_spawns used=61 limit=60
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- run/status.json
++++ run/status.json
+@@ -7,3 +7,3 @@
+   "harness": "claude-code",
+-  "costs": {"spawns": 10, "by_stage": {}, "wall_minutes": 30}
++  "costs": {"spawns": 61, "by_stage": {}, "wall_minutes": 30}
  }
 
 === usage-no-args
@@ -1454,6 +1739,96 @@ patch:
 @@ -1 +1 @@
 -{}
 +{"budget": []}
+
+=== bad-config-verify-string
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": "3"}
+
+=== bad-config-verify-array
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": [1]}
+
+=== bad-config-verify-zero
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": 0}}
+
+=== bad-config-verify-fraction
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": 1.5}}
+
+=== bad-config-verify-quoted
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": "2"}}
+
+=== bad-config-verify-bool
+args: run
+exit: 2
+stdout:
+patch:
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": true}}
+
+=== bad-status-verify-zero
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -6,2 +6,3 @@
+   "round": 2,
++  "verify": {"max_rounds": 0},
+   "harness": "claude-code",
+
+=== bad-status-verify-not-object
+args: run
+exit: 2
+stdout:
+patch:
+--- run/status.json
++++ run/status.json
+@@ -6,2 +6,3 @@
+   "round": 2,
++  "verify": 2,
+   "harness": "claude-code",
 
 === bad-costs-json
 args: run

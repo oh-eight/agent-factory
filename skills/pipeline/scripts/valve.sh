@@ -9,7 +9,9 @@
 # from status.json.budget, then from budget in the config.json in the run
 # directory's parent (FACTORY_HOME is not read), then the governor defaults;
 # a status.json.budget value above twice the config.json or default value
-# counts as twice that value.
+# counts as twice that value. The verification round limit is read the same
+# way from status.json.verify.max_rounds, then verify.max_rounds in that
+# config.json, then 1.
 # Prints exactly one line: "ok" (exit 0) or "tripped: <reason>" (exit 3).
 # Exit 2: bad usage, an input it cannot read or evaluate, or a program that
 # failed; stdout is then empty, and stderr names files inside the run
@@ -117,7 +119,8 @@ ascdef='def hex4: [(. / 4096 | floor) % 16, (. / 256 | floor) % 16, (. / 16 | fl
     | add;'
 
 # One jq pass validates every JSON input and prints one tab-separated
-# "facts" line: round, round-1, the four limits, spawns, costs.json
+# "facts" line: round, round-1, the four budget limits, the verification
+# round limit, spawns, costs.json
 # entries, wall minutes (floored) and the ledger fingerprint that repeats
 # (JSON-encoded by asc, "-" for none). Any input it cannot evaluate prints an
 # "error" line instead.
@@ -134,6 +137,10 @@ facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
     | reduce ("max_rounds", "max_inner_passes", "max_agent_spawns", "max_wall_minutes") as $k
         ($b; if .[$k] != null and ((.[$k] | posint) | not)
              then error(name + ": budget." + $k + " is not an integer >= 1") else . end);
+  def vobj(name): if . == null then {} elif type == "object" then .
+    else error(name + ": verify is not an object or null") end;
+  def vchk(name): if .max_rounds != null and ((.max_rounds | posint) | not)
+    then error(name + ": verify.max_rounds is not an integer >= 1") else . end;
   # A status.json value wins up to twice the config.json or default value.
   def lim($sb; $cb; $k; $d): ($cb[$k] // $d) as $base
     | if $sb[$k] == null then $base
@@ -152,6 +159,8 @@ facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
     | ($s.budget | bobj("status.json") | chk("status.json")) as $sb
     | (if $hascf == "1" then ($cf | one("config.json")) else {} end) as $cfg
     | ($cfg.budget | bobj("config.json") | chk("config.json")) as $cb
+    | ($s.verify | vobj("status.json") | vchk("status.json")) as $sv
+    | ($cfg.verify | vobj("config.json") | vchk("config.json")) as $cv
     | (if $hasld == "1" then ($ld | one("ledger.json")) else {} end) as $l
     | ($l | to_entries | map(
         if (.value | type) != "object" then error("ledger.json: an entry is not an object")
@@ -174,6 +183,7 @@ facts="$( { jq -n -r --slurpfile st "$dir/status.json" --slurpfile cf "$cf" \
           lim($sb; $cb; "max_inner_passes"; 3),
           lim($sb; $cb; "max_agent_spawns"; 60),
           lim($sb; $cb; "max_wall_minutes"; 240),
+          lim($sv; $cv; "max_rounds"; 1),
           ($sp // 0), $n, ($wm // 0)] | map(floor | tostring))
       + [$lfp]
     | join("\t")
@@ -194,9 +204,9 @@ set -f
 set -- $facts
 set +f
 IFS="$oldifs"
-[ $# = 11 ] || die "unexpected jq output"
-r="$2"; p="$3"; mr="$4"; mi="$5"; ms="$6"; mw="$7"; sp="$8"; sc="$9"; wm="${10}"; lfp="${11}"
-for v in "$r" "$p" "$mr" "$mi" "$ms" "$mw" "$sp" "$sc" "$wm"; do
+[ $# = 12 ] || die "unexpected jq output"
+r="$2"; p="$3"; mr="$4"; mi="$5"; ms="$6"; mw="$7"; mv="$8"; sp="$9"; sc="${10}"; wm="${11}"; lfp="${12}"
+for v in "$r" "$p" "$mr" "$mi" "$ms" "$mw" "$mv" "$sp" "$sc" "$wm"; do
   isnum "$v" || die "a number in the JSON inputs is out of range"
 done
 case "$lfp" in
@@ -253,9 +263,10 @@ if presentdir "$dir/verification"; then
     vn="$(verdict "$dir/verification/round-$r.md")" || die "cannot read verification/round-$r.md"
   fi
 fi
-blk=0; inv=0
+blk=0; inv=0; fnd=0
 [ "$vp" = BLOCKED ] && [ "$vn" = BLOCKED ] && blk=1
 [ "$vp" = INVALID ] && [ "$vn" = INVALID ] && inv=1
+[ "$vn" = FINDINGS ] && fnd=1
 
 # Round N's builder reports, the fix passes and the summary outcome.
 dec=0; ip=0; ob=0; ck=""
@@ -305,8 +316,8 @@ fi
 
 # The first condition that holds, in the documented order.
 line="$(VALVE_LFP="$lfp" VALVE_CFP="$cfp" awk -v r="$r" -v p="$p" -v mr="$mr" -v mi="$mi" \
-  -v ms="$ms" -v mw="$mw" -v sp="$sp" -v sc="$sc" -v wm="$wm" -v ck="$ck" -v cr="$cr" \
-  -v blk="$blk" -v inv="$inv" -v dec="$dec" -v ip="$ip" -v ob="$ob" 'BEGIN {
+  -v ms="$ms" -v mw="$mw" -v mv="$mv" -v sp="$sp" -v sc="$sc" -v wm="$wm" -v ck="$ck" -v cr="$cr" \
+  -v blk="$blk" -v inv="$inv" -v fnd="$fnd" -v dec="$dec" -v ip="$ip" -v ob="$ob" 'BEGIN {
     if (r + 0 >= mr + 0) { print "tripped: max_rounds round=" r " limit=" mr; exit }
     if (ENVIRON["VALVE_LFP"] != "-") {
       print "tripped: repeat fingerprint=" ENVIRON["VALVE_LFP"] " source=ledger rounds=" p "," r; exit
@@ -324,6 +335,7 @@ line="$(VALVE_LFP="$lfp" VALVE_CFP="$cfp" awk -v r="$r" -v p="$p" -v mr="$mr" -v
     if (ip + 0 > mi + 0 || (ip + 0 == mi + 0 && ob == 1)) {
       print "tripped: budget max_inner_passes used=" ip " limit=" mi; exit
     }
+    if (fnd == 1 && r + 0 >= mv + 0) { print "tripped: verify max_rounds round=" r " limit=" mv; exit }
     print "ok"
   }')" || die "cannot evaluate the conditions (awk failed)"
 
