@@ -440,6 +440,41 @@ patch:
 -claims: 3  pass: 2  fail: 1  unverifiable: 0  attempts: 12  deferred: 0
 +claims: 3  pass: 2  fail: 1  unverifiable: 0  attempts: 12  deferred: 1
 
+=== r6-spec-level-deferred
+args: --after-triage spec.md round.md
+exit: 1
+stdout:
+R6 triage F-1-2 want known have deferred
+patch:
+--- round.md
++++ round.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — TOY-1
+-verdict: FINDINGS
++verdict: SHIP
+ head: 1111111  base: 0000000  spec_hash: 2222222
+@@ -47,3 +47,4 @@
+ - category: implementation-bug
+-- severity: high
++- severity: low
++- triage: deferred → X-9
+ - repro: `bin/tool a; echo "exit=$?"`
+@@ -53,2 +54,10 @@
+ ## Spec-level findings
++### F-1-2  fingerprint: spec-vague-usage  repeat-of: none  personas: stranger
++- claim: spec
++- category: spec-gap
++- severity: medium
++- triage: deferred → X-9
++- repro: read the expect line of C2 in spec.md
++- observed: one usage line on stderr
++- expected: the exact usage text
+ 
+@@ -59,2 +68,2 @@
+ ## Coverage
+-claims: 3  pass: 2  fail: 1  unverifiable: 0  attempts: 12  deferred: 0
++claims: 3  pass: 2  fail: 1  unverifiable: 0  attempts: 12  deferred: 2
+
 === r6-spec-level-high
 args: --after-triage spec.md round.md
 exit: 1
