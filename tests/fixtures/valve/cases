@@ -1189,6 +1189,31 @@ patch:
 +  "verify": {"max_rounds": 5},
    "harness": "claude-code",
 
+=== verify-status-below-config
+args: run
+exit: 3
+stdout:
+tripped: verify max_rounds round=2 limit=2
+patch:
+--- run/verification/round-2.md
++++ run/verification/round-2.md
+@@ -1,3 +1,3 @@
+ # Verification round 2 — T-1
+-verdict: SHIP
++verdict: FINDINGS
+ head: 3333333  base: 0000000  spec_hash: 2222222
+--- config.json
++++ config.json
+@@ -1 +1 @@
+-{}
++{"verify": {"max_rounds": 3}}
+--- run/status.json
++++ run/status.json
+@@ -6,2 +6,3 @@
+   "round": 2,
++  "verify": {"max_rounds": 2},
+   "harness": "claude-code",
+
 === verify-not-tripped-on-clean
 args: run
 exit: 0

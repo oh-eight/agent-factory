@@ -702,6 +702,77 @@ patch:
 +- triage: known → X-1
  - repro: `bin/tool a; echo "exit=$?"`
 
+=== r6-env-medium-known-extra-key
+args: --after-triage spec.md round.md
+exit: 0
+stdout:
+patch:
+--- round.md
++++ round.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — TOY-1
+-verdict: FINDINGS
++verdict: SHIP
+ head: 1111111  base: 0000000  spec_hash: 2222222
+@@ -46,4 +46,6 @@
+ - claim: C4
+-- category: implementation-bug
+-- severity: high
++- category: env
++- severity: medium
++- ac: AC-1
++- triage: known → X-1
+ - repro: `bin/tool a; echo "exit=$?"`
+
+=== r6-missing-severity
+args: --after-triage spec.md round.md
+exit: 1
+stdout:
+R6 triage F-1-1 want loop have known
+R6 want FINDINGS have SHIP
+patch:
+--- round.md
++++ round.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — TOY-1
+-verdict: FINDINGS
++verdict: SHIP
+ head: 1111111  base: 0000000  spec_hash: 2222222
+@@ -47,3 +47,3 @@
+ - category: implementation-bug
+-- severity: high
++- triage: known → X-1
+ - repro: `bin/tool a; echo "exit=$?"`
+
+=== r6-security-claim-elsewhere
+args: --after-triage spec.md round.md
+exit: 0
+stdout:
+patch:
+--- round.md
++++ round.md
+@@ -1,3 +1,3 @@
+ # Verification round 1 — TOY-1
+-verdict: FINDINGS
++verdict: SHIP
+ head: 1111111  base: 0000000  spec_hash: 2222222
+@@ -45,5 +45,6 @@
+ ### F-1-1  fingerprint: c4-accepts-letters  repeat-of: none  personas: fuzzer, stranger
+-- claim: C4
++- claim: C3
+ - category: implementation-bug
+-- severity: high
++- severity: medium
++- triage: known → X-1
+ - repro: `bin/tool a; echo "exit=$?"`
+--- spec.md
++++ spec.md
+@@ -38,3 +38,3 @@
+ ### C4: Rejects non-numeric input
+-- type: functional
++- type: security
+ - verify: `bin/tool a; echo "exit=$?"`
+
 === r7
 args: spec.md round.md
 exit: 1
