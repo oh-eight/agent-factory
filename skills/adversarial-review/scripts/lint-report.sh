@@ -124,7 +124,9 @@ awk '/^## Files opened/{p=1;next} /^## /{p=0} p' "$R" \
       <(lines "$entry") - || norun R5
 
 # R6 triage words and header verdict after triage (--after-triage only).
-# Every ### F- block is classified from its own fields. It blocks when it
+# Every ### F- block is classified from its own fields; a heading of three or
+# more #, then blanks, then an F- id (###  F-, ###<TAB>F-, #### F-) opens one
+# too, and any other such heading closes it. It blocks when it
 # sits under any heading but exactly ## Findings or ## Spec-level findings
 # (or under none), when its severity is not low or
 # medium (high, empty, missing or misspelt), its category is not one of
@@ -167,7 +169,7 @@ if [ "$after" = 1 ]; then
       next
     }
     /^## / { flush(); sec = ($0 ~ /^## Findings[ \t\r]*$/) ? "F" : (($0 ~ /^## Spec-level findings[ \t\r]*$/) ? "S" : ""); next }
-    /^### / { flush(); if (/^### F-/) { id = $2; tr = "none"; split("", fv) } next }
+    /^###+[ \t]/ { flush(); if ($2 ~ /^F-/) { id = $2; tr = "none"; split("", fv) } next }
     id != "" && /^- (severity|category|claim):/ { k = $0; sub(/^- /, "", k); sub(/:.*/, "", k); setf(k, val(k)); next }
     id != "" && tr == "none" && /^- triage:/ { t = val("triage"); split(t, a, /[ \t]+/); if (a[1] != "") tr = a[1] }
     END { flush(); print nb + 0, nk + 0; for (i = 1; i <= no; i++) print out[i] }' "$S" "$R") || norun R6
