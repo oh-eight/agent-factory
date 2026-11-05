@@ -24,8 +24,12 @@ Category comes from the verifier:
   not be. All `## Spec-level findings` are this category.
 - `env`: `## How to run` or `## Entry points` did not let the verifier run
   the system as written.
-- `security`: a security break (injection, escaping a trust boundary, a
-  leaked secret, an auth or tenancy bypass). A `security` finding always
+- `security`: a security break (injection or other input that crosses an
+  interpreter, escaping a trust boundary, a leaked secret, an auth,
+  privilege or tenancy bypass, a rate, quota or resource limit not
+  enforced, internal detail on an error path, a replay or a single-use
+  value that works twice: every `broke:` in the Attacker section of
+  `attack-catalogue.md`). A `security` finding always
   loops: it is never deferred and never a known issue, and it keeps the
   severity the verifier gave it.
 

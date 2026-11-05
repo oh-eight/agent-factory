@@ -81,9 +81,14 @@ fingerprints for `ledger.json` and the valve.
   not be; every spec-level finding.
 - `env`: `## How to run` or `## Entry points` did not let the verifier run
   the system as written.
-- `security`: a security break, whatever the claim: injection, escaping a
-  trust boundary, a leaked secret, an auth or tenancy bypass. It blocks the
-  round at any severity.
+- `security`: a security break, whatever the claim: injection or other
+  input that crosses an interpreter, escaping a trust boundary, a leaked
+  secret, an auth, privilege or tenancy bypass, a rate, quota or resource
+  limit not enforced, internal detail on an error path (a stack trace, a
+  file path, a configuration value, a token, another account's data), a
+  replay or a single-use value that works twice. Every `broke:` in the
+  Attacker section of `attack-catalogue.md` is one. It blocks the round at
+  any severity.
 
 ## Lint (run by `adversarial-review` on the merged file)
 

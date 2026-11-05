@@ -98,8 +98,14 @@ checks `git status` after you return and treats a dirty tree as INVALID.
    with the same fingerprint, else `none`. Category, exactly one of
    `implementation-bug`, `spec-gap`, `env`, `security` (lower-case, as
    written): use `security` for a security break, whatever the claim's
-   type: injection, escaping a trust boundary, a leaked secret, an auth or
-   tenancy bypass. Severity per the template:
+   type: injection or other input that crosses an interpreter, escaping a
+   trust boundary, a leaked secret, an auth, privilege or tenancy bypass,
+   a rate, quota or resource limit not enforced, internal detail on an
+   error path (a stack trace, a file path, a configuration value, a
+   token, another account's data), a replay or a single-use value that
+   works twice. Every `broke:` in the Attacker section of `catalogue` is
+   one, and so is a promised rejection of that kind that does not
+   happen. Severity per the template:
    `high` for data loss, security, a stated acceptance criterion missed,
    a crash on plausible input; `medium` for a wrong edge result, a
    misleading error, a promised rejection that does not happen; `low` for
