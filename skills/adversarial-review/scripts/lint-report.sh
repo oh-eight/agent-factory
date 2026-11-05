@@ -126,7 +126,10 @@ awk '/^## Files opened/{p=1;next} /^## /{p=0} p' "$R" \
 # R6 triage words and header verdict after triage (--after-triage only).
 # Every ### F- block is classified from its own fields; a heading of three or
 # more #, then blanks, then an F- id (###  F-, ###<TAB>F-, #### F-) opens one
-# too, and any other such heading closes it. It blocks when it
+# too, and any other such heading closes it. Any other heading-like line (blanks,
+# one or more #, blanks, * _ ` or ~, then an F-<n>-<m> or f-<n>-<m> id) opens a
+# finding that always blocks, so a heading spelling not listed here fails
+# closed. It blocks when it
 # sits under any heading but exactly ## Findings or ## Spec-level findings
 # (or under none), when its severity is not low or
 # medium (high, empty, missing or misspelt), its category is not one of
@@ -155,7 +158,7 @@ if [ "$after" = 1 ]; then
         (cat != "implementation-bug" && cat != "spec-gap" && cat != "env") ||
         (cl != "spec" && !(cl in known)) ||
         (ty == "security" && sev == "medium") ||
-        (sec != "F" && sec != "S")
+        (sec != "F" && sec != "S") || bad
       if (!blocks && tr == "deferred" && sec == "F" && ty != "security") { id = ""; return }
       w = blocks ? "loop" : "known"
       if (blocks) nb++; else nk++
@@ -168,8 +171,12 @@ if [ "$after" = 1 ]; then
       if (c != "" && !(c in type) && /^- type:/) type[c] = val("type")
       next
     }
-    /^## / { flush(); sec = ($0 ~ /^## Findings[ \t\r]*$/) ? "F" : (($0 ~ /^## Spec-level findings[ \t\r]*$/) ? "S" : ""); next }
-    /^###+[ \t]/ { flush(); if ($2 ~ /^F-/) { id = $2; tr = "none"; split("", fv) } next }
+    { fid = ""; h = $0 }
+    /^[ \t]*#/ && sub(/^[ \t]*#+[ \t]*[*_`~]*/, "", h) && match(h, /^[Ff]-[0-9]+-[0-9]+/) { fid = substr(h, 1, RLENGTH) }
+    /^## / { flush(); sec = ($0 ~ /^## Findings[ \t\r]*$/) ? "F" : (($0 ~ /^## Spec-level findings[ \t\r]*$/) ? "S" : ""); if (fid == "") next }
+    /^###+[ \t]/ && $2 ~ /^F-/ { flush(); id = $2; bad = 0; tr = "none"; split("", fv); next }
+    fid != "" { flush(); id = fid; bad = 1; tr = "none"; split("", fv); next }
+    /^###+[ \t]/ { flush(); next }
     id != "" && /^- (severity|category|claim):/ { k = $0; sub(/^- /, "", k); sub(/:.*/, "", k); setf(k, val(k)); next }
     id != "" && tr == "none" && /^- triage:/ { t = val("triage"); split(t, a, /[ \t]+/); if (a[1] != "") tr = a[1] }
     END { flush(); print nb + 0, nk + 0; for (i = 1; i <= no; i++) print out[i] }' "$S" "$R") || norun R6
