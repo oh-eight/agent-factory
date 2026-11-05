@@ -23,6 +23,7 @@ every change on the dashboard.
 | `budget.max_inner_passes` | 3 | | |
 | `budget.max_agent_spawns` | 60 | | |
 | `budget.max_wall_minutes` | 240 | | |
+| `verify.max_rounds` | 1 | | verification rounds that may end in `FINDINGS` before the valve escalates; see `governor.md` |
 | `models` | `{}` | | role → model overrides |
 | `triage.defer_below` | `"medium"` | | findings strictly below this severity become follow-up tickets (`security` never) |
 | `heartbeat` | `{nurse:15, sentinel:15, factory:30, chat:30}` | | minutes between passes |

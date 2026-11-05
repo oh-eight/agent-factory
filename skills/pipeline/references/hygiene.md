@@ -14,7 +14,7 @@ narration:
 | → `prepare` (round 1) | Branch name, repository, link to the brief's sources if they were not already on the ticket |
 | → `verify` | Round N: X claims built, tests added, link to the PR branch |
 | verify FINDINGS | Round N: Y findings (Z deferred to follow-ups KEY-…), back to prepare |
-| → `pr` | PR link, draft or ready |
+| → `pr` | PR link, draft or ready; after a SHIP round, the known-issue count and the follow-up key |
 | → `gated` | What is waiting and for whom |
 | → `escalated` | One paragraph from `escalation.md`: the reason and the one question |
 | → `merge` | Merged sha |
@@ -52,7 +52,7 @@ to selects by that label. Engine label names
 | `factory-blocked` | escalated; needs a human |
 | `factory-gated` | waits on a human decision by design (decision, rollout) |
 | `factory-mode:<mode>` | overrides the work type |
-| `factory-followup` | created by triage from a deferred finding |
+| `factory-followup` | created by triage from a deferred finding, or the run's combined known-issue follow-up |
 
 ## Child and follow-up tickets
 

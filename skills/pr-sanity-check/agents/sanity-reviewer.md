@@ -32,7 +32,9 @@ or whichever section the body uses):
 
 - **Must contain**: every change the description says happens (a new
   branch, a removed flag, a renamed field, a migration, a config change, a
-  test). One expectation per claimed change.
+  test). One expectation per claimed change. A `### Known issues` section
+  lists what the change leaves open, tracked on a follow-up; never count
+  it as a claim about the diff.
 - **Must not contain**: anything the description rules out ("existing
   suites are untouched", "no behaviour change for X", "flag-gated,
   default off", "read-only").

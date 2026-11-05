@@ -27,7 +27,17 @@ risky, flag-gated, or deliberately left out.>
 
 <Tests added (from qa.md), mutation survivors killed (mutation.md), burn-in
 result, and one line: "Adversarial verification round N: X claims, Y
-attempts across fuzzer, attacker and stranger, all passed." No file lists.>
+attempts across fuzzer, attacker and stranger, all passed." for a CLEAN
+round, or "…, Z known issues, listed below." for a SHIP round. No file
+lists.>
+
+### Known issues
+
+<Open issues this change ships with, tracked on the follow-up; they are not
+part of the change. One line per finding with `triage: known` in the last
+merged verification report (verification/round-N.md):>
+
+- <fingerprint> (<F-id>, <severity>, <claim>) → <follow-up key>
 
 ### Context
 
@@ -44,7 +54,10 @@ attempts across fuzzer, attacker and stranger, all passed." No file lists.>
 
 - Never narrate the diff file by file; the reviewer has the diff.
 - Never add an AI attribution line.
-- Delete a section you cannot fill with facts.
+- Delete a section you cannot fill with facts. Leave `### Known issues`
+  out when the last merged report has no `triage: known` finding; when it
+  has any, list every one of them, each with the follow-up key from its
+  triage line.
 - Updating an existing body: read it first, change only sections whose
   facts changed, keep the author's edits, never append a changelog.
 - Run `voice.polish(durable)` over title and body before publishing.

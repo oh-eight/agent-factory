@@ -35,7 +35,8 @@ output file named in its inputs.
 When roles run in the same session, the verifier's isolation is weaker: the
 session has already seen the code. Follow the verifier's forbidden list
 strictly anyway, record `isolation: same-session` in the report header, and
-say so on the dashboard. A same-session CLEAN still counts, with that label.
+say so on the dashboard. A same-session CLEAN or SHIP still counts, with
+that label.
 
 ## Shell notes
 

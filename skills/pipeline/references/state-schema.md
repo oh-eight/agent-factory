@@ -121,6 +121,11 @@ line per problem and exit 1, and never repairs the file):
   governor default when config has none); the pipeline writes a larger ask
   at that cap. The valve reads it before `config.json` and clamps a larger
   value to the cap (`governor.md` "Valve").
+- `verify{}` is optional, the per-run override of `config.json.verify`:
+  `max_rounds`, a positive integer, the verification rounds that may end in
+  `FINDINGS`. Written under the same rules and cap as `budget{}` (twice
+  the `config.json` value, 1 when config has none); the valve reads it
+  first.
 - `instructions[]` are strings appended by `<front door> KEY <text>`. Every
   stage reads them at start, applies what it can, and appends
   `applied: <text>` to `history[]`. They are never deleted.

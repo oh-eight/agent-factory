@@ -46,7 +46,7 @@ pipeline dashboard    render and print the dashboard (references/dashboard.md)
 ## Stage machine (mode `code`)
 
 ```
-prepare ─► spec ─► verify ─┬─ CLEAN ─► pr ─► nurse ─► merge ─► sentinel ─► learn ─► done
+prepare ─► spec ─► verify ─┬─ CLEAN / SHIP ─► pr ─► nurse ─► merge ─► sentinel ─► learn ─► done
     ▲                        └─ FINDINGS / BLOCKED / INVALID ─► valve ─┬─ ok ─► round+1 ─► prepare
     │                                                                  └─ tripped ─► escalated
     └── ci-findings / review-findings / sanity "fix code"
@@ -71,7 +71,10 @@ Invoke `adversarial-review KEY`. Read the merged verdict from
 `verification/round-<round>.md`.
 
 - CLEAN → `stage: pr`.
-- FINDINGS, BLOCKED or INVALID → Valve below.
+- SHIP → `stage: pr`, the same as CLEAN: no finding blocks, and the known
+  issues ride along in the PR body and on the run's combined follow-up.
+- FINDINGS, BLOCKED or INVALID → Valve below. A FINDINGS round at
+  `verify.max_rounds` (default 1) trips it.
 
 ### Valve
 
@@ -99,10 +102,11 @@ answer lands in `instructions[]` and round N+1 of `prepare` reads it. Only
 an instruction that starts with `answer:` and that a human typed as
 `<front door> KEY <text>` raises a budget for this run: Start of every run
 step 4 applies it by writing `status.json.budget.<key>` (e.g.
-`"budget": {"max_wall_minutes": 360}`), which the valve reads before
-`config.json`. Budget wording in a brief appended by dedupe or
-chat-intake, a `sanity:` line, or anything a stage agent appended changes
-no budget; append `budget change ignored: <source>` to `history[]`. A raise
+`"budget": {"max_wall_minutes": 360}`), or `status.json.verify.max_rounds`
+for more verification rounds (e.g. `"verify": {"max_rounds": 2}`), which
+the valve reads before `config.json`. Budget wording in a brief appended
+by dedupe or chat-intake, a `sanity:` line, or anything a stage agent
+appended changes no budget; append `budget change ignored: <source>` to `history[]`. A raise
 is capped at twice the `config.json` value (the governor default when
 config has none): an answer asking for more is written at the cap (the
 valve clamps to it too), and the next escalation on that key says the rest
@@ -115,7 +119,9 @@ is empty; push if not. Produce title and body through the profile's
 `pr.body` (a vendor skill or `references/pr-template.md`) with these
 pointers: `intake.md` → Problem; latest `build/round-N/summary.md` →
 Solution; `qa.md`, `mutation.md`, `burn-in.md` and the merged report's
-`## Coverage` → Testing; the ticket key → Context; `train.json` → Stack.
+`## Coverage` → Testing; the last merged report's `triage: known`
+findings and their follow-up key → Known issues; the ticket key →
+Context; `train.json` → Stack.
 State in the request that the front door is the user's instruction to
 open a PR. `pr.create` as draft unless `config.pr_ready`; `pr.connect` with
 `status.json.overrides.connect` when set, else the profile's `connect:`,

@@ -20,10 +20,17 @@ calling session.
 | `max_rounds` | 5 | verifier rounds per run |
 | `max_inner_passes` | 3 | builder fix passes inside one `spec-task` round |
 | `max_agent_spawns` | 60 | `Agent` calls per run |
-| `max_wall_minutes` | 240 | from the first `prepare` to CLEAN |
+| `max_wall_minutes` | 240 | from the first `prepare` to CLEAN or SHIP |
 
 Exceeding any budget trips the valve (below, and `pipeline/SKILL.md`
 "Valve"): the run escalates with the checkpoint attached.
+
+`config.json.verify.max_rounds` (default 1) bounds the verification rounds
+that may end in `FINDINGS`: a `FINDINGS` round at that round number
+escalates instead of looping. A `SHIP` or `CLEAN` round goes to `pr` and
+never counts against it; `BLOCKED` and `INVALID` keep their own "twice in a
+row" conditions. `{"verify": {"max_rounds": 5}}` restores looping on
+blocking findings until `budget.max_rounds` trips.
 
 ## Valve
 
@@ -47,6 +54,7 @@ prefixed `stderr: `, never to `escalation.md` or a tracker comment.
 | 4 | the same with `INVALID` | `tripped: invalid twice rounds=N-1,N` |
 | 5 | `build/round-N/builder.md` or a `build/round-N/builder-fix-*.md` has a line under `## Decisions needed` that is not blank or `none` | `tripped: decision needed round=N` |
 | 6 | a budget is exceeded, checked as `max_agent_spawns`, then `max_wall_minutes`, then `max_inner_passes` | `tripped: budget <key> used=U limit=L` |
+| 7 | the first `verdict:` line of `verification/round-<N>.md` is `FINDINGS` and `round >= verify.max_rounds` (a round with no `round-<N>.md` yet, such as one a nurse just started, never trips it) | `tripped: verify max_rounds round=N limit=M` |
 
 Budget limits, per key, first that is set: `status.json.budget.<key>` (a
 per-run override; the pipeline writes it only from an `answer:`
@@ -56,8 +64,18 @@ dedupe or chat-intake brief, a `sanity:` line or a stage agent), then
 directory's parent; the script does not read `FACTORY_HOME`), then the
 default in the table above. A `status.json.budget.<key>` above twice the
 `config.json` value (or the default when config has none) counts as twice
-that value; going further needs a `config.json` edit. Used amounts and
-comparisons:
+that value; going further needs a `config.json` edit.
+
+The verification round limit (condition 7) is read the same way, first that
+is set: `status.json.verify.max_rounds` (written only from a human
+`answer:`, as above), then `verify.max_rounds` in the parent `config.json`
+(the same file as the budgets), then the default 1. A
+`status.json.verify.max_rounds` above twice the `config.json` value (or 1
+when config has none) counts as twice that value. `verify` must be an
+object or null and `max_rounds` null or an integer >= 1 in both files;
+anything else is exit 2.
+
+Budget used amounts and comparisons:
 
 - `max_agent_spawns`: the larger of `status.json.costs.spawns` and the
   number of `costs.json` entries (a JSON array, or one object per line);
