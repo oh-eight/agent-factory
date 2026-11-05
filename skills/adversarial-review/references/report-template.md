@@ -4,11 +4,12 @@ One file per persona (`verification/round-N-<persona>.md`) in this exact
 shape, then one merged file (`verification/round-N.md`) in the same shape
 with the attempts of every persona under each claim. The lint below runs on
 the merged file; a report that fails it is INVALID, whatever its verdict
-says.
+says. Personas write only `CLEAN`, `FINDINGS` or `BLOCKED`; `SHIP` is
+written by the skill after triage, in the merged file only.
 
 ```markdown
 # Verification round N — KEY
-verdict: CLEAN | FINDINGS | BLOCKED
+verdict: CLEAN | SHIP | FINDINGS | BLOCKED
 head: <sha>  base: <sha>  spec_hash: <sha256 of spec.md>
 isolation: subagent | same-session
 personas: fuzzer, attacker, stranger          # merged file only; single-persona files name one
@@ -38,9 +39,9 @@ written is a finding of category env.>
 ## Findings
 ### F-N-1  fingerprint: <claim-id>-<short-slug>  repeat-of: F-(N-1)-2 | none  personas: fuzzer, stranger
 - claim: C4
-- category: implementation-bug | spec-gap | env
+- category: implementation-bug | spec-gap | env | security
 - severity: high | medium | low
-- triage: loop | deferred → <follow-up key>        # filled by the skill, not the verifier
+- triage: loop | known → <follow-up key> | deferred → <follow-up key>   # filled by the skill, not the verifier
 - repro: <exact steps or command a stranger can rerun>
 - observed: <what happened>
 - expected: <what the spec says>
@@ -73,9 +74,21 @@ fingerprints for `ledger.json` and the valve.
   that the spec promised.
 - `low`: cosmetic, wording, a nice-to-have the spec did not promise.
 
+## Category
+
+- `implementation-bug`: the code does the wrong thing against a claim.
+- `spec-gap`: the spec is contradictory, vague, or silent where it should
+  not be; every spec-level finding.
+- `env`: `## How to run` or `## Entry points` did not let the verifier run
+  the system as written.
+- `security`: a security break, whatever the claim: injection, escaping a
+  trust boundary, a leaked secret, an auth or tenancy bypass. It blocks the
+  round at any severity.
+
 ## Lint (run by `adversarial-review` on the merged file)
 
-1. `verdict:` line present with one of the three values.
+1. Exactly one `verdict:` line, with one of `CLEAN`, `SHIP`, `FINDINGS`,
+   `BLOCKED`.
 2. Every `### C<n>:` in `spec.md` (except `status: removed-*`) appears as
    `### C<n> — PASS|FAIL|UNVERIFIABLE`.
 3. Every PASS has at least `min_attempts` numbered attempts under **each**
@@ -86,19 +99,36 @@ fingerprints for `ledger.json` and the valve.
    (`.java .kt .ts .tsx .js .py .go .rs .rb .cs .swift .scala .c .cpp .h`)
    that is not listed under `## Entry points` in the spec. Absolute paths
    (the verifier's own scratch payloads and scripts) are not checked.
-6. `verdict:` equals the verdict recomputed after triage: BLOCKED when
-   there is at least one claim section and every claim section is
-   UNVERIFIABLE; else CLEAN when no finding under `## Findings` has
-   `triage: loop`, no claim is UNVERIFIABLE and `## Spec-level findings`
-   holds no `### F-` block; else FINDINGS.
+6. Triage words and `verdict:` match what the findings' own fields say.
+   Every `### F-` block under `## Findings` and `## Spec-level findings`
+   is classified, the blocking test first. A finding **blocks** when its
+   severity is `high` (spec-level included), or its category is
+   `security` (any severity), or it sits on a `type: security` claim at
+   `medium` or worse. An unrecognised severity or category (anything but
+   `low`/`medium`/`high` and the four categories above, `Medium` and
+   `Security` included), a missing one, a `- claim:` that is neither
+   `spec` nor a claim id in `spec.md`, or one of those lines given twice,
+   also blocks (fail closed). A `deferred` line never hides a blocking
+   finding. A non-blocking finding under `## Findings` whose triage is
+   `deferred` and whose claim is not `type: security` is skipped. Every
+   other finding is a known issue. The wanted triage word is `loop` for a
+   blocking finding and `known` for a known issue; each finding whose
+   first triage word differs prints `R6 triage <id> want <w> have <h>`
+   (`have none` when it has no triage line), in file order. Then the
+   verdict, in this order: BLOCKED when there is at least one claim
+   section and every one is UNVERIFIABLE; else FINDINGS when a finding
+   blocks or a claim is UNVERIFIABLE; else SHIP when at least one finding
+   is a known issue; else CLEAN. A mismatch prints `R6 want <V> have <W>`,
+   after the `R6 triage` lines.
 7. `## Coverage` counts match the claim sections.
 
 A report that fails rule 2, 3, 4 or 5 goes back to the persona at fault
 once, with the failing rule numbers; if it still fails, the skill records
 INVALID. Rules 1, 6 and 7 check what the skill itself wrote: it rewrites the
-header verdict (rule 1) or writes the script's want value (rules 6 and 7),
-lints again, and records INVALID if a line is still printed. No persona is
-re-prompted for them.
+header verdict (rule 1) or writes the script's want values (rules 6 and 7:
+the triage word of each `R6 triage` line, the `R6 want` verdict, the `R7
+want` Coverage line), lints again, and records INVALID if a line is still
+printed. No persona is re-prompted for them.
 
 The executable form of this list is `scripts/lint-report.sh` in this
 skill: its default mode checks rules 1–5 and 7 (step 5), and

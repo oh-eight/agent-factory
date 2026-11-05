@@ -10,12 +10,15 @@ metadata:
 
 The builder says the claims hold. This skill tries to prove it wrong, from
 the outside, three different ways at once, and writes down exactly what it
-tried. A round ends CLEAN only when every persona ran every claim, nothing
-broke, and the report survives a mechanical lint. Everything else sends the
-ticket back through `prepare` or trips the valve in `pipeline`.
+tried. A round ends CLEAN when every persona ran every claim, nothing
+broke, and the report survives a mechanical lint. It ends SHIP when every
+claim ran and what broke is only known issues: nothing high, nothing
+`security`, nothing `medium` on a `type: security` claim. Both go to `pr`.
+Everything else sends the ticket back through `prepare` or trips the valve
+in `pipeline`.
 
 Read before acting: `references/report-template.md` (shape and lint),
-`references/triage.md` (severity, defer rule, ledger),
+`references/triage.md` (severity, blocking and defer rules, ledger),
 `agents/verifier.md` (what a persona may and may not do),
 `../pipeline/references/{state-schema,config-schema,harness,governor,hygiene}.md`.
 
@@ -145,7 +148,8 @@ go under `## Spec-level findings` as full `### F-` blocks.
 `## Files opened` is the sorted union, duplicates removed. `## Coverage`
 is recomputed in step 6. Header `verdict:` is provisional until step 6:
 BLOCKED if every claim is UNVERIFIABLE, FINDINGS if any FAIL,
-UNVERIFIABLE or spec-level finding exists, else CLEAN.
+UNVERIFIABLE or spec-level finding exists, else CLEAN. Never `SHIP` here;
+only step 6 writes it.
 
 ### 5. Lint (structural rules)
 
@@ -186,22 +190,33 @@ rounds in a row trip the valve in `pipeline`; this skill only records.
 
 ### 6. Triage
 
-Follow `references/triage.md`. For each finding under `## Findings`:
+Follow `references/triage.md`. For each finding under `## Findings` and
+`## Spec-level findings`, in this order:
 
-- `severity` strictly below `config.triage.defer_below` (default `medium`,
-  so `low` only), `category` is not `security`, and the claim's `type:` in
-  `$S` is not `security` → **deferred**. Append the full block to
-  `$V/deferred-findings.md` (dated, with the round). Unless
+- **Blocking** first: severity `high` (spec-level included), category
+  `security` (any severity), or `medium` or worse on a claim whose `type:`
+  in `$S` is `security`. An unrecognised severity or category, or a
+  `- claim:` that is not `spec` and names no claim in `$S`, also blocks.
+  → `- triage: loop`. A blocking finding is never deferred.
+- Not blocking, under `## Findings`, severity strictly below
+  `config.triage.defer_below` (default `medium`, so `low` only), and the
+  claim's `type:` is not `security` → **deferred**. Append the full block
+  to `$V/deferred-findings.md` (dated, with the round). Unless
   `config.offline`, create a follow-up through `tracker.create` with the
   template in `triage.md` (summary from the finding, description with the
   repro, `tracker.link(KEY, relates, new)`, label `factory-followup`), then
   write `- triage: deferred → <new key>`. Offline → `- triage: deferred →
   (offline)`.
-- Everything else, including every env finding and every block under
-  `## Spec-level findings` → `- triage: loop`.
+- Every other finding, spec-level `low` and `medium` included → **known
+  issue**, `- triage: known → <key>`. `<key>` is the run's one combined
+  follow-up issue (`triage.md`, "Known-issue follow-up template"): the
+  first round with a known issue creates it through `tracker.create` and
+  `tracker.link`; a later round adds its `## Round N` section with
+  `tracker.comment`, finding the key from a ledger entry with
+  `status: known`. Offline → `- triage: known → (offline)`.
 
-Claim lines keep their verdict; a FAIL whose only finding is deferred is
-still written FAIL but no longer counts toward the verdict.
+Claim lines keep their verdict; a FAIL whose only finding is deferred or
+known is still written FAIL but does not block.
 
 Then lint the triaged report with all seven rules, reading the exit status
 as in step 5:
@@ -212,7 +227,13 @@ as in step 5:
 
 The script's `want` values are what the skill writes:
 
-- `R6 want <V> have <W>` → write `verdict: <V>` in the header.
+- `R6 triage <id> want <w> have <h>` → set that finding's triage to `<w>`:
+  `loop`, or `known → <key>` with the combined follow-up as above (add the
+  finding to this round's section). A deferred ticket already created for
+  it stays open; a finding that stops being a known issue comes out of the
+  round's section.
+- `R6 want <V> have <W>` → write `verdict: <V>` in the header (`CLEAN`,
+  `SHIP`, `FINDINGS` or `BLOCKED`).
 - `R7 want [<line>] have [<line>]` → write the `want` line after
   `## Coverage` (the deferred count is now non-zero when applicable).
 
@@ -228,10 +249,12 @@ the top of `$R`, keep the rest, and continue at step 7. Write
 (`triage.md` has the schema and an example). For this round:
 
 - every fingerprint in `$R` (including spec-level): append `N` to
-  `rounds` (no duplicates); `status` = `deferred` with `ticket` when
-  triage deferred it, else `open`; `claim` from the block.
+  `rounds` (no duplicates); `status` = `deferred` or `known` with `ticket`
+  when triage deferred it or made it a known issue, else `open`; `claim`
+  from the block.
 - every fingerprint already in the ledger with `status: open` that is
-  absent from `$R` → `status: fixed`. `deferred` entries never change.
+  absent from `$R` → `status: fixed`. `deferred` and `known` entries never
+  change.
 - an INVALID round still records its findings as `open`; it never marks
   anything `fixed`, because absence in an invalid round proves nothing.
 
@@ -240,23 +263,25 @@ open` means the same break survived a fix attempt.
 
 ### 8. Hygiene, stage, return
 
-- `status.json`: CLEAN → `stage: pr`. FINDINGS, BLOCKED or INVALID →
-  leave `stage: verify`; the pipeline applies the valve and decides
-  between `round+1` and escalation. Append to `history[]`
-  `{ts, event: "verify round N <verdict> fail=<n> unverifiable=<n> deferred=<n>"}`
+- `status.json`: CLEAN or SHIP → `stage: pr`. FINDINGS, BLOCKED or
+  INVALID → leave `stage: verify`; the pipeline applies the valve and
+  decides between `round+1` and escalation. Append to `history[]`
+  `{ts, event: "verify round N <verdict> fail=<n> unverifiable=<n> deferred=<n> known=<n>"}`
   and the matching line to `run.log`, plus the `governor.md` checkpoint
   line.
 - Hygiene (`hygiene.md`): on FINDINGS, BLOCKED or INVALID, one
   `tracker.comment` after `voice.polish(text, durable)`:
   `Round N: Y findings (Z deferred to follow-ups KEY-…), back to prepare`,
   with BLOCKED or INVALID named as the reason instead of a count. On CLEAN
-  post nothing here; the pipeline's `→ pr` comment carries the counts.
+  or SHIP post nothing here; the pipeline's `→ pr` comment carries the
+  counts and the known-issue follow-up key.
   Skip comments when `config.offline`.
 - Release nothing: the pipeline holds the lock.
 
 Return under 30 lines: verdict, `head`, `spec_hash`, per-claim one-line
-table (`C1 PASS`, `C4 FAIL F-N-1 high loop`, …), counts from
-`## Coverage`, deferred follow-up keys, lint result (`ok` or the failing
+table (`C1 PASS`, `C4 FAIL F-N-1 high loop`, `C2 FAIL F-N-2 medium
+known`, …), counts from `## Coverage`, deferred follow-up keys, the
+known-issue follow-up key and count, lint result (`ok` or the failing
 rules), whether a re-prompt happened, path of `$R`, and the next stage.
 
 ## Harness notes
@@ -277,9 +302,15 @@ produces a key.
   source, no builder notes, no transcript.
 - Never skip the lint, never hand-edit a persona report to make it pass.
   Fix the merge, re-prompt the persona once, or record INVALID.
-- Never mark a round CLEAN with an UNVERIFIABLE claim, a `loop` finding, or
-  a spec-level finding, whatever the personas' own verdict lines say.
-- `security` findings and claims of `type: security` are never deferred.
+- Never mark a round CLEAN or SHIP with an UNVERIFIABLE claim or a
+  blocking finding (`high`; category `security`; `medium` or worse on a
+  `type: security` claim; anything unrecognised), and never CLEAN with a
+  known issue, whatever the personas' own verdict lines say. Personas
+  never write SHIP.
+- A `deferred` line never hides a blocking finding.
+- `security` findings and findings on claims of `type: security` are never
+  deferred. A `security` finding is never a known issue; a `low` finding of
+  another category on a `type: security` claim is one.
 - A dirty tree after the personas return is restored and the round is
   INVALID; the state dir is the only place this skill writes.
 - Scratch dirs live under `$V`, never inside the repository.

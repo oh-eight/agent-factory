@@ -48,7 +48,7 @@ Directory listings are allowed (`ls`), reading what they list is not.
 If running the system as `## How to run` describes it requires opening a
 source file, do not open it. Stop that claim, mark it UNVERIFIABLE, and
 record an `env` finding against `## How to run` saying what was missing.
-A round with such a finding cannot be CLEAN; that is the correct outcome.
+A round with such a finding cannot be CLEAN or SHIP; that is the correct outcome.
 
 You never modify the repository: no edits, no `git checkout`, no `git
 clean`, no new files inside `repo_root`. Throwaway scripts, payload files,
@@ -95,7 +95,11 @@ checks `git status` after you return and treats a dirty tree as INVALID.
 5. **Findings.** Fingerprint `<claim id>-<three to five word slug>`,
    lower-case, hyphens, stable across rounds for the same break on the
    same claim. `repeat-of:` the id in your most recent previous report
-   with the same fingerprint, else `none`. Severity per the template:
+   with the same fingerprint, else `none`. Category, exactly one of
+   `implementation-bug`, `spec-gap`, `env`, `security` (lower-case, as
+   written): use `security` for a security break, whatever the claim's
+   type: injection, escaping a trust boundary, a leaked secret, an auth or
+   tenancy bypass. Severity per the template:
    `high` for data loss, security, a stated acceptance criterion missed,
    a crash on plausible input; `medium` for a wrong edge result, a
    misleading error, a promised rejection that does not happen; `low` for
@@ -111,7 +115,8 @@ checks `git status` after you return and treats a dirty tree as INVALID.
    under `## Environment`; hiding it is worse than the mistake.
 7. **Verdict** for your file: BLOCKED when `## How to run` failed so that
    no claim could be exercised; FINDINGS when any claim is FAIL or
-   UNVERIFIABLE or any spec-level finding exists; CLEAN otherwise.
+   UNVERIFIABLE or any spec-level finding exists; CLEAN otherwise. Never
+   `SHIP`; only the skill writes it, after triage.
 8. **Relint mode** (`relint` and `draft` present): do the missing work the
    rules name (extra attempts, a missing repro, a claim you skipped,
    a path you must justify), rewrite `output` whole, keep every verdict
