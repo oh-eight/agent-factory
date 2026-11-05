@@ -81,7 +81,7 @@ lines() { [ -z "$1" ] || printf '%s\n' "$1"; }
 # on them byte for byte.
 rules() {
 # R1 verdict line
-n=$(grep -cE '^verdict: (CLEAN|FINDINGS|BLOCKED)$' "$R"); nomatch $? R1
+n=$(grep -cE '^verdict: (CLEAN|SHIP|FINDINGS|BLOCKED)$' "$R"); nomatch $? R1
 [ "$n" = 1 ] || echo "R1 verdict"
 
 # R2 every live spec claim has a verdict
@@ -123,20 +123,66 @@ awk '/^## Files opened/{p=1;next} /^## /{p=0} p' "$R" \
          { for (i = 1; i <= n; i++) if (index(e[i], $0)) next; print "R5 " $0 }' \
       <(lines "$entry") - || norun R5
 
-# R6 header verdict after triage (--after-triage only). BLOCKED when there is
-# at least one claim section and every one is UNVERIFIABLE; else CLEAN when no
-# loop finding, no UNVERIFIABLE claim and no spec-level finding; else FINDINGS.
+# R6 triage words and header verdict after triage (--after-triage only).
+# Every ### F- block under ## Findings and ## Spec-level findings is
+# classified from its own fields. It blocks when its severity is not low or
+# medium (high, empty, missing or misspelt), its category is not one of
+# implementation-bug, spec-gap or env (security, or anything unrecognised),
+# its claim is neither "spec" nor a claim id in spec.md, or it is medium on a
+# type: security claim; a severity, category or claim line given twice also
+# blocks. A blocking finding wants "- triage: loop" whatever its triage line
+# says. A non-blocking finding under ## Findings whose triage word is
+# "deferred" and whose claim is not type: security is skipped. Every other
+# finding wants "known". One "R6 triage <id> want <w> have <h>" line per
+# finding whose first triage word differs ("none" when there is none), in
+# file order. Then the verdict: BLOCKED when there is at least one claim
+# section and every one is UNVERIFIABLE; else FINDINGS when a finding blocks
+# or a claim is UNVERIFIABLE; else SHIP when a finding is known; else CLEAN.
 if [ "$after" = 1 ]; then
-  loop=$(awk '/^## Findings/{p=1} /^## Spec-level/{p=0} p && /^- triage: loop/' "$R" | wc -l | tr -d ' ') || norun R6
+  r6=$(awk '
+    function val(k,   v) { v = $0; sub("^- " k ":[ \t]*", "", v); sub(/[ \t\r]+$/, "", v); return v }
+    function setf(k, v) { if (k in fv) fv[k] = "\001"; else fv[k] = v }
+    function flush(   sev, cat, cl, ty, blocks) {
+      if (id == "") return
+      sev = ("severity" in fv) ? fv["severity"] : ""
+      cat = ("category" in fv) ? fv["category"] : ""
+      cl = ("claim" in fv) ? fv["claim"] : ""
+      ty = (cl in type) ? type[cl] : ""
+      blocks = (sev != "low" && sev != "medium") ||
+        (cat != "implementation-bug" && cat != "spec-gap" && cat != "env") ||
+        (cl != "spec" && !(cl in known)) ||
+        (ty == "security" && sev == "medium")
+      if (!blocks && tr == "deferred" && sec == "F" && ty != "security") { id = ""; return }
+      w = blocks ? "loop" : "known"
+      if (blocks) nb++; else nk++
+      if (tr != w) out[++no] = "R6 triage " id " want " w " have " tr
+      id = ""
+    }
+    FNR == NR {
+      if (/^### C[0-9]+:/) { c = $2; sub(/:$/, "", c); known[c] = 1; next }
+      if (/^#/) { c = ""; next }
+      if (c != "" && !(c in type) && /^- type:/) type[c] = val("type")
+      next
+    }
+    /^## / { flush(); sec = ($0 ~ /^## Findings/) ? "F" : (($0 ~ /^## Spec-level findings/) ? "S" : ""); next }
+    /^### / { flush(); if (sec != "" && /^### F-/) { id = $2; tr = "none"; split("", fv) } next }
+    id != "" && /^- (severity|category|claim):/ { k = $0; sub(/^- /, "", k); sub(/:.*/, "", k); setf(k, val(k)); next }
+    id != "" && tr == "none" && /^- triage:/ { t = val("triage"); split(t, a, /[ \t]+/); if (a[1] != "") tr = a[1] }
+    END { flush(); print nb + 0, nk + 0; for (i = 1; i <= no; i++) print out[i] }' "$S" "$R") || norun R6
+  counts=$(printf '%s\n' "$r6" | sed -n 1p) || norun R6
+  printf '%s\n' "$r6" | sed 1d || norun R6
+  nblock=${counts% *}
+  nknown=${counts#* }
   unv=$(grep -cE '^### C[0-9]+ — UNVERIFIABLE' "$R"); nomatch $? R6
-  spec=$(awk '/^## Spec-level findings/{p=1;next} /^## /{p=0} p && /^### F-/' "$R" | wc -l | tr -d ' ') || norun R6
   claims=$(grep -cE '^### C[0-9]+ — (PASS|FAIL|UNVERIFIABLE)' "$R"); nomatch $? R6
   if [ "$claims" -gt 0 ] && [ "$unv" = "$claims" ]; then
     vwant=BLOCKED
-  elif [ "$((loop + unv + spec))" = 0 ]; then
-    vwant=CLEAN
-  else
+  elif [ "$((nblock + unv))" -gt 0 ]; then
     vwant=FINDINGS
+  elif [ "$nknown" -gt 0 ]; then
+    vwant=SHIP
+  else
+    vwant=CLEAN
   fi
   vhave=$(awk '/^verdict: /{sub(/^verdict: /,""); print; exit}' "$R") || norun R6
   [ "$vwant" = "$vhave" ] || echo "R6 want $vwant have $vhave"
